@@ -1,0 +1,17 @@
+{
+  "name": "app_recommendator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "Main.js",
+  "dependencies": {
+    "app-store-scraper": "git+https://github.com/bbbuka/app-store-scraper.git",
+    "express": "^4.16.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node Main.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
