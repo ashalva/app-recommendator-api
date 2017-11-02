@@ -1,6 +1,6 @@
 # app-recommendator-api
 
-##instructions
+## instructions
 
 Navigate to the project direcctory with terminal and execute the commands
 1. npm install
@@ -9,8 +9,8 @@ Navigate to the project direcctory with terminal and execute the commands
 
 Then the server will start...
 
-###Methods
-####Retrieve categories
+### Methods
+#### Retrieve categories
 http://localhost:8081/categories
 ```
 {
@@ -22,7 +22,7 @@ http://localhost:8081/categories
 }
 ```
 
-####Retrieve apps within category
+#### Retrieve apps within category
 http://localhost:8081/apps?category=7003
 ```
 [
@@ -50,7 +50,7 @@ http://localhost:8081/apps?category=7003
 }
 ```
 
-####Retrieve app reviews within the given app
+#### Retrieve app reviews within the given app
 http://localhost:8081/app?appId=com.neonfun.catalog
 
 ```
@@ -71,7 +71,7 @@ http://localhost:8081/app?appId=com.neonfun.catalog
 ```
 
 
-####Retrieve app description within the given app
+#### Retrieve app description within the given app
 http://localhost:8081/app/description?id=1291851950
 ```
 {
