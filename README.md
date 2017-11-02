@@ -68,6 +68,8 @@ http://localhost:8081/app?appId=com.neonfun.catalog
       "text": "Review text",
       "url": "https://itunes.apple.com/us/review?id=656971078&type=Purple%20Software"
     },    
+    ...
+}
 ```
 
 
