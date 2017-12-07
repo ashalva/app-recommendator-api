@@ -23,41 +23,36 @@ import html
 # In[ ]:
 
 class TextProcessing:
-    def __init__(self,appId,data):
-        self.appId = appId
+    def __init__(self,appName,data):
+        self.appName = appName
         self.data = data
 
     # segment description into sentences
     def SegmemtintoSentences(self,sents_already_segmented=False):
         self.sents=[]
-        self.data = unidecode(self.data)
         #print(self.data)
-        pattern=r'".*"(\s+-.*)?'
-        self.data = re.sub(pattern, '', self.data)
-        pattern1 = r'\'s'
-        self.data = re.sub(pattern1,"",self.data)
-
-        if sents_already_segmented == True:       
-            list_lines = self.data.split('\n')
-            list_lines = [line for line in list_lines if line.strip()!='']
-            #self.sents=list_sents
+        if sents_already_segmented == True:     
+            list_lines = [line for line in self.data if line.strip()!='']
             for line in list_lines:
-                if line.strip()=="Credits" or line.strip()=="credits":
-                    break
-                
-                if line.isupper():
-                    line = line.capitalize()
-                    
-                sentences = nltk.sent_tokenize(line)
-                self.sents.extend(sentences)
+                u_line = unidecode(line)
+                pattern=r'".*"(\s+-.*)?'
+                u_line = re.sub(pattern, '', u_line)
+                pattern1 = r'\'s'
+                u_line= re.sub(pattern1,"",u_line)
+                #sentences = nltk.word_tokenize(u_line)
+                #print(u_line)
+                self.sents.append(u_line)
         elif sents_already_segmented==False:
             self.sents = nltk.sent_tokenize(self.data)
             self.sents = [sent for sent in self.sents if sent.strip()!='']
+        
+        return(self.sents)
         
     # clean sentences
     def  GetCleanSentences(self):
         sentences=[]
         clean_sentences=[]
+        sent_id=0
         # remove explanations text with-in brackets
         for sent in self.sents:
             sent = html.unescape(sent.strip())
@@ -66,9 +61,12 @@ class TextProcessing:
             urls = re.findall('(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?',sent)
             #urls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', sent)
             emails = re.findall("[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*", sent) 
+            url_regex = r'(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?'
+            email_regex = r"[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*"
             #quotations = re.findall('"([^"]*)"', sent)
             match_list = re.finditer(regex,sent)
-            
+            match_list_email = re.finditer(email_regex,sent)
+            match_list_url = re.finditer(url_regex,sent)
             new_sent=sent
             
             #print(match)
@@ -82,17 +80,35 @@ class TextProcessing:
                     clean_sentences.append(new_sent)
                 else:
                     clean_sentences.append(sent)
+            else:
+                if match_list_url:
+                    for match in match_list_url:
+                        txt_to_be_removed = sent[match.start()-1:match.end()]
+                        new_sent=new_sent.replace(txt_to_be_removed,"")
+                    
+                    clean_sentences.append(new_sent)
+                
+                elif match_list_email:
+                    for match in match_list_email:
+                        txt_to_be_removed = sent[match.start()-1:match.end()]
+                        new_sent=new_sent.replace(txt_to_be_removed,"")
+                    
+                    clean_sentences.append(new_sent)
+                
+        
         
         # replace bullet points and symbols # ,-, and * (use for delineate)        
         pattern = r'\*|\u2022|#'
         
-        #app_names=[]
+        app_names=[]
         
-        #app_words = self.appId.lower().split("_")
+        app_words = self.appName.split(' ')
         
-        #if len(app_words)>1:
-            #app_names.append(' '.join(app_words))
-            #app_names.append(''.join(app_words))
+        if len(app_words)>1:
+            app_names.append(' '.join(app_words))
+            app_names.append(''.join(app_words))
+        else:
+            app_names.append(self.appName)
         
         #list_stop_words = list(stop_words.ENGLISH_STOP_WORDS) + list(stopwords.words('english')) + list(['anything','beautiful','efficient','enjoyable','way','quick','greeting','features','elegant','instant','fun']) 
                 
@@ -101,9 +117,10 @@ class TextProcessing:
         
         #final_stop_words = set(list_stop_words) - set(NON_STOP_WORDS)
         custom_stop_words = ['anything','beautiful','efficient','enjoyable','way','quick','greeting','features','elegant','instant','fun','price','dropbox','iphone','total','is','in-app','apps','quickly','easily','lovely','others','other','own','the','interesting','addiction','following','featured','best','phone','sense','fantastical','fantastic','better',
-                            'award-winning','include','including','winning','improvements','improvement','significant','app','mac','pc','ipad','approach','application','applications','lets','several','safari','pro','google','matter','embarrassing','faster','mistakes','gmail','official','out','results','those','them','have','internet','anymore','are','provide','partial','useful','twitter','facebook','need','lose','it','yahoo','be','swiss','say','makes','make','local','button','will','vary','was','were','cloudapp','everything','straightforward','seamless','mundane','convenience','based','whatever','d','trials','trial','stuff','same','responsibility','love','great','would','good','only','might','strange','thing','nice','has','had','have','various','poor','stupid','could','did','does','do','doesn\'t','didn\'t','don\'t','didnt','dont','doesnt','can','cant','couldn\'t','couldnt','lot','alot','m','\'ve','\'ll','etc','am','lots','did','does','most','frightening','frighten','crash','crashes','bad','awesome','wonderful','simplistic','im','sometimes','should','shouldn\'t','guys','me','enjoy','m','glitch','cute']
-        #final_stop_words = set(custom_stop_words)
-    
+                            'award-winning','include','including','winning','improvements','improvement','significant','app','mac','pc','ipad','approach','application','applications','lets','several','safari','pro','google','matter','embarrassing','faster','mistakes','gmail','official','out','results','those','them','have','internet','anymore','are','provide','partial','useful','twitter','facebook','need','lose','it','yahoo','be','swiss','say','makes','make','local','button','will','vary','was','were','cloudapp','everything','straightforward','seamless','mundane','convenience','based','whatever','d','trials','trial','stuff','same','responsibility','love','great','would','good','only','might','strange','thing','nice','has','had','have','various','poor','stupid','could','did','does','do','doesn\'t','didn\'t','don\'t','didnt','dont','doesnt','can','cant','couldn\'t','couldnt','lot','alot','m','\'ve','\'ll','etc','am','lots','did','does','most','frightening','frighten','crash','crashes','bad','awesome','wonderful','simplistic','im','sometimes','should','shouldn\'t','guys','me','enjoy','m','glitch','cute','having','em','i','this','bcoz','n','y','very','but','bt','cud','b','its','itz','it','good','goood','no','none','fine','plz','anyone','tell','problem','bug','issue','crash','please','fix','nd','awsme','juz','just','bugs','ur','dis','v','cnt','cool','c','bcz','fulfills','error','dat','canot','nthng','jst',"\'s","anyways","anywayz","anyway","thiz","different","things","much","wid","about","bore","being","excellent","p","plz","whole","allow","allowed","bein","been","confusion","fixes","wish","hope","needs","brought","ever","worrying","worry","\'s","t","s" ,"who","whom","whose","which","ll","someone",'certain','hate','company','everyone','first','few','issues','terrible','corrupted']
+        
+        
+        custom_stop_words = custom_stop_words + app_names
         
         for index,sent in enumerate(clean_sentences):
             clean_sent= re.sub(pattern,"",sent)
@@ -119,6 +136,8 @@ class TextProcessing:
             #print(' '.join(sent_tokens))
             #print("+++++++++++++++++++++++++++++++++++++++++++++++")
             sentences.append(' '.join(sent_tokens))
+        
+        
                 
         return sentences
     
@@ -172,11 +191,6 @@ class TextProcessing:
         #print(sent)
         #print("")
     #textProcessor.PrintCleanandPOSTagSentences()
-
-
-# In[25]:
-
-
 
 
 # In[ ]:

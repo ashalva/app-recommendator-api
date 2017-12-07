@@ -21,63 +21,84 @@ import json
 #importlib.reload(Text_Preprocessing)
 
 
-# In[63]:
-
-from enum import Enum
-class EXTRACTION_MODE(Enum):
-    APP_DESCRIPTION = 1
-    USER_REVIEWS= 2
-
-
 # In[291]:
 
 class SAFE_Patterns:
-    def __init__(self,appId,clean_sents,extraction_mode):
-        self.appId=appId
-        #self.app_description = clean_sents
+    def __init__(self,appName,review_id,clean_sents,unclean_data):
+        self.appName=appName
+        self.reviewID= review_id
         self.clean_sentences = clean_sents
-        self.extraction_mode = extraction_mode
+        self.unclean_sentences = unclean_data
     
     def ExtractFeatures_Analyzing_Sent_POSPatterns(self):
-        raw_features_sent_patterns,remaining_sents=self.Extract_AppFeatures_with_SentencePatterns()
-        raw_features_pos_patterns=self.Extract_AppFeatures_with_POSPatterns(remaining_sents)
+        raw_features_sent_patterns,remaining_sents,sent_with_features=self.Extract_AppFeatures_with_SentencePatterns()
+        raw_features_pos_patterns,sents_features=self.Extract_AppFeatures_with_POSPatterns(sent_with_features)
         extracted_app_features = raw_features_sent_patterns + raw_features_pos_patterns
-        
-        #print(extracted_app_features)
-        
-        #extracted_app_features=[feature for feature in extracted_app_features if 'including' not in feature.split()]
-        #extracted_app_features=[feature for feature in extracted_app_features if 'providing' not in feature.split()]
-        #extracted_app_features=[feature for feature in extracted_app_features if 'winning' not in feature.split()]
-        extracted_app_features=[feature for feature in extracted_app_features if 'iphone' not in feature.split()]
-        extracted_app_features=[feature for feature in extracted_app_features if 'more' not in feature.split()]
-        extracted_app_features=[feature for feature in extracted_app_features if 'many' not in feature.split()]
         
         #remvove features that has 1 char word in them
         #clean_app_features= [feature for feature in extracted_app_features if detect(feature)=='en']
-           
-        list_clean_feaures=[]
-        # remove noise
-        for feature in extracted_app_features:
-            words = feature.split()
-            duplicate_words = all(x == words[0] for x in words)
+        
+        stemmer = nltk.stem.SnowballStemmer('english')
+        
+        for sent_id in sents_features.keys():
+            extracted_features = sents_features[sent_id]['extracted_features']
+            list_clean_features=[]
             
-            if duplicate_words!=True:
-                list_clean_feaures.append(feature)
+            for feature in extracted_features:
+                words = feature.split()
+                duplicate_words = all(stemmer.stem(x) == stemmer.stem(words[0]) for x in words)
+            
+                if duplicate_words!=True:
+                    list_clean_features.append(feature)
+            
+            sents_features[sent_id]['extracted_features']=list_clean_features
+           
+    #         list_clean_feaures=[]
+#         # remove noise
+#         for feature in extracted_app_features:
+#             words = feature.split()
+#             duplicate_words = all(x == words[0] for x in words)
+            
+#             if duplicate_words!=True:
+#                 list_clean_feaures.append(feature)
         
         #print("# of extracted app features (after removing noise) are %d" % (len(list_clean_feaures)))
         
         #print(list_clean_feaures)
         
-        self.SaveExtractedFeatures(list_clean_feaures)
+        return(sents_features)
+        
+        #self.SaveExtractedFeatures(list_clean_feaures)
+        #self.SaveExtractedFeaturesWithSents(sents_features)
+        
+        #print(list_clean_feaures)
         
         #print("Extracted features saved sucessfully in a file!!!")
+        
+    def SaveExtractedFeaturesWithSents(self,features_with_sents):
+        csv_file = open(self.appName.upper() + '_EXTRACTED_FEATURES_WITH_SENTENCES', "w") 
+        for sent_id in features_with_sents.keys():
+            original_sentence = features_with_sents[sent_id]['original_sentence']
+            extracted_features = features_with_sents[sent_id]['extracted_features']
+            
+            clean_extracted_features=[]
+            
+            for feature in extracted_features:
+                words = feature.split()
+                duplicate_words = all(x == words[0] for x in words)
+            
+                if duplicate_words!=True:
+                    clean_extracted_features.append(feature)
+            
+            row = original_sentence + "\t" +  ','.join(clean_extracted_features) + "\n"
+            csv_file.write(row)
+        
+        csv_file.close()
+            
     
     def SaveExtractedFeatures(self,extracted_features):
-        file_path = self.appId.upper() + "_EXTRACTED_APP_FEATURES_"
-        if self.extraction_mode.value == EXTRACTION_MODE.APP_DESCRIPTION.value:
-            file_path = file_path + "DESC.pkl"
-        elif self.extraction_mode.value == EXTRACTION_MODE.USER_REVIEWS.value:
-            file_path = file_path + "REVIEWS.pkl"
+        file_path = self.appName.upper() + "_EXTRACTED_APP_FEATURES_"
+        file_path = file_path + "REVIEWS.pkl"
         
         with open(file_path, 'wb') as fp:
             pickle.dump(extracted_features, fp)
@@ -94,7 +115,7 @@ class SAFE_Patterns:
         
         return(app_features)
     
-    def Extract_AppFeatures_with_POSPatterns(self,clean_sents):
+    def Extract_AppFeatures_with_POSPatterns(self,sent_with_features):
         app_features_pos_patterns=[]
         
         # list of all POS patterns
@@ -119,24 +140,37 @@ class SAFE_Patterns:
                      ]
     #Noun Conjunction Noun Noun
 
-        for sent in clean_sents:
-            sent_tokens= nltk.word_tokenize(sent)
-            tag_tokens = nltk.pos_tag(sent_tokens,tagset='universal')
-            tag_text = ' '.join([word.lower() + "/" + tag for word,tag in tag_tokens])
+        for sentence_id in sent_with_features.keys():
+            sent_info = sent_with_features[sentence_id]
+            sent = sent_info['clean_sent']
+            
+            if len(sent_info['extracted_features'])==0:
+                extracted_features=[]
+                sent_tokens= nltk.word_tokenize(sent)
+                tag_tokens = nltk.pos_tag(sent_tokens,tagset='universal')
+                tag_text = ' '.join([word.lower() + "/" + tag for word,tag in tag_tokens])
             #print(tag_text)
             # extract app features through by iterating through list of all POS_patterns
-            for pattern in pos_patterns:
+                for pattern in pos_patterns:
                 # store extracted features in list of app features
                
-                raw_features = self.Extract_Features_with_single_POSPattern(pattern,tag_text)
-                if len(raw_features)!=0:
+                    raw_features = self.Extract_Features_with_single_POSPattern(pattern,tag_text)
+                    if len(raw_features)!=0:
                     #print("Pattern->%s" % (pattern))
                     #print(raw_features)
-                    app_features_pos_patterns.extend(raw_features)
+                        app_features_pos_patterns.extend(raw_features)
+                        extracted_features.extend(raw_features)
+                
                 
                     #print("")
             
-        return(app_features_pos_patterns)
+                if len(extracted_features)>0:
+                    sent_feature_info = sent_with_features[sentence_id]
+                    sent_feature_info['extracted_features'] = list(set(extracted_features))
+                    sent_with_features[sentence_id] = sent_feature_info
+            
+            
+        return(app_features_pos_patterns,sent_with_features)
     
     def SentencePattern_Case1(self,tag_text):
         raw_features=[]
@@ -263,8 +297,20 @@ class SAFE_Patterns:
     def Extract_AppFeatures_with_SentencePatterns(self):
         raw_app_features_sent_patterns=[]
         clean_sents_wo_sent_patterns=[]
+        sents_with_extracted_features={}
         
-        for sent in self.clean_sentences:
+        #print(len(self.clean_sentences))
+        
+        sent_id=0
+        
+        for sent_index in range(0,len(self.clean_sentences)):
+            sent = self.clean_sentences[sent_index]
+            sent_features=[]
+            try:
+                sent_text = self.unclean_sentences[sent_index]
+            except KeyError as ex:
+                print(sent_id)
+            
             sent_tokens= nltk.word_tokenize(sent)
             tag_tokens = nltk.pos_tag(sent_tokens,tagset='universal')
             tag_text = ' '.join([word.lower()  + "/" + tag for word,tag in tag_tokens])
@@ -276,8 +322,11 @@ class SAFE_Patterns:
             if len(raw_features_case1)!=0:
                
                 raw_app_features_sent_patterns.extend(raw_features_case1)
-                #print(raw_app_features_sent_patterns)
+                sent_features.extend(raw_features_case1)
                 #print("CASE1***************************")
+                #print(sent)
+                #print(raw_app_features_sent_patterns)
+                #print('==================================')
                 #print(sent)
                 #print("CASE1***************************")
                 sent_pattern_found=True
@@ -288,35 +337,43 @@ class SAFE_Patterns:
                 #print("CASE2***************************")
                 #print(sent)
                 raw_app_features_sent_patterns.extend(raw_features_case2)
+                sent_features.extend(raw_features_case2)
                 #print("CASE2***************************")
                 sent_pattern_found=True
             #case 3
             raw_features_case3 = self.SentencePattern_Case3(tag_text)
             if len(raw_features_case3)!=0:
                 raw_app_features_sent_patterns.extend(raw_features_case3)
+                sent_features.extend(raw_features_case3)
                 sent_pattern_found=True
                 #print("CASE3***************************")
             #case 4
             raw_features_case4 = self.SentencePattern_Case4(tag_text)
             if len(raw_features_case4)!=0:                
                 raw_app_features_sent_patterns.extend(raw_features_case4)
-                print(raw_features_case4)
+                sent_features.extend(raw_features_case4)
+                #print(raw_features_case4)
                 #print("***************************")
                 sent_pattern_found=True
             #case 5
             raw_features_case5 = self.SentencePattern_Case5(tag_text)
             if len(raw_features_case5)!=0:
                 raw_app_features_sent_patterns.extend(raw_features_case5)
+                sent_features.extend(raw_features_case5)
                 #print("CASE5***************************")
                 sent_pattern_found=True
 #                 print(raw_features_case5)
 #                 print("##########################")
             
             if sent_pattern_found==False:
-                clean_sents_wo_sent_patterns.append(sent)
+                clean_sents_wo_sent_patterns.append(sent)  
+            
+            #if len(sent_features) > 0 :
+            sents_with_extracted_features[sent_index]={'sentence_text' : sent_text,'clean_sent':sent,'extracted_features':sent_features}
+            
+            #sent_id = sent_id + 1
         
-        
-        return(raw_app_features_sent_patterns,clean_sents_wo_sent_patterns)
+        return(raw_app_features_sent_patterns,clean_sents_wo_sent_patterns,sents_with_extracted_features)
 
 
 # In[292]:
@@ -341,6 +398,12 @@ class SAFE_Patterns:
 #     obj_surf = SAFE_Patterns(appID,app_description,EXTRACTION_MODE.APP_DESCRIPTION)
 #     obj_surf.PreprocessData()
 #     obj_surf.ExtractFeatures_Analyzing_Sent_POSPatterns()
+
+
+# In[5]:
+
+# a={0:{'sent_text':'this is some text','extracted_features':['upload text'], 'clean_text':'some text'}}
+# del(a[0]['clean_text'])
 
 
 # In[ ]:

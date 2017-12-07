@@ -15,46 +15,20 @@ import math
 
 # In[2]:
 
-from enum import Enum
-class MERGE_MODE(Enum):
-    DESCRIPTION=1
-    USER_REVIEWS=2
-    DESCRIPTION_USER_REVIEWS=3
-
-
-# In[3]:
-
-#nlp = spacy.load('en')
-
-
-# In[15]:
-
 class Merge_Features:
-    def __init__(self,appId,mode,nlp):
-        self.appId =  appId
-        file_path = self.appId.upper() + "_EXTRACTED_APP_FEATURES_"
-        
-        if mode.value == MERGE_MODE.DESCRIPTION.value:
-            self.raw_app_features = self.GetExtractedFeatures(file_path + "DESC.pkl")
-        elif mode.value ==  MERGE_MODE.USER_REVIEWS.value:
-            self.raw_app_features = self.GetExtractedFeatures(file_path + "REVIEWS.pkl")
-        elif mode.value == MERGE_MODE.DESCRIPTION_USER_REVIEWS.value:
-            app_features_desc = self.GetExtractedFeatures(file_path + "DESC.pkl")
-            app_features_reviews = self.GetExtractedFeatures(file_path + "REVIEWS.pkl")
-            
-            self.raw_app_features = app_features_desc + app_features_reviews
-        
-        #print(self.raw_app_features)
+    def __init__(self,appName,extracted_app_features,nlp):
+        self.appName =  appName
+        #file_path = self.appName.upper() + "_EXTRACTED_APP_FEATURES_"
+        self.raw_app_features = extracted_app_features #self.GetExtractedFeatures(file_path + "REVIEWS.pkl")
         self.nlp = nlp
         
     # matching on a single term level 'send email' and 'email send' are considered matching features
     
-    def GetExtractedFeatures(self,path):
-        with open (path, 'rb') as fp:
-            raw_app_features = pickle.load(fp)
+#     def GetExtractedFeatures(self,path):
+#         with open (path, 'rb') as fp:
+#             raw_app_features = pickle.load(fp)
         
-        return(raw_app_features)
-        
+#         return(raw_app_features)
     
     def Merge_Matching_Terms(self):
         
@@ -263,12 +237,31 @@ class Merge_Features:
 
         return(feature_word_synonyms)
     
+    def FilterReviewAppFeaturesByAppFeaturesExtractedFromDesciption(self,extracted_app_features_reviews,extracted_app_features_desc,similarity_th=.80):
+        clean_app_features_reviews=[]
+        
+        cosine = lambda v1, v2: np.dot(v1, v2) / (LA.norm(v1) * LA.norm(v2))
+        
+        for review_app_feature in set(extracted_app_features_reviews):
+            review_app_feature_vector = self.app_feature_words_vector(self.nlp(review_app_feature))
+            for desc_app_feature in set(extracted_app_features_desc):
+                desc_app_feature_vector = self.app_feature_words_vector(self.nlp(desc_app_feature))
+                
+                if review_app_feature_vector.shape == desc_app_feature_vector.shape:
+                    dist = cosine(review_app_feature_vector, desc_app_feature_vector)
+                
+                    if dist>=similarity_th:
+                        clean_app_features_reviews.append(review_app_feature)
+                    #print(review_app_feature)
+        
+        return(clean_app_features_reviews)
+    
     def GetAppFeatures_JSONformat(self):
-        filepath = self.appId.upper() + "_EXTRACTED_FEATURES.txt" 
+        filepath = self.appName.upper() + "_EXTRACTED_FEATURES.txt" 
         file = open(filepath, 'w')
         
         json_output={}
-        json_output['appID'] = self.appId
+        json_output['appName'] = self.appName
         
         list_app_features=[]
         features_clusters = []
