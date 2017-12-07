@@ -78,7 +78,8 @@ app.get('/app/description', function(req, res){
 });
 
 var cachedMessage;
-var debugMode = true;
+var debugMode = false;
+
 app.get('/features', function(req, res){ 
 	console.log(req.url);
 	if (debugMode === true && cachedMessage !== undefined) {
@@ -93,7 +94,7 @@ app.get('/features', function(req, res){
 	store.app({id: parseInt(req.query.id)}).then(appValues => {  
 		var promises = [];
 	
-		for (var i = 0; i< 10; i++) {
+		for (var i = 0; i < 5; i++) {
 		var promise = store.reviews({
 			id: req.query.id,
 			sort: store.sort.HELPFUL,

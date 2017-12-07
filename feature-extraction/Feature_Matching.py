@@ -257,8 +257,6 @@ class Merge_Features:
         return(clean_app_features_reviews)
     
     def GetAppFeatures_JSONformat(self):
-        filepath = self.appName.upper() + "_EXTRACTED_FEATURES.txt" 
-        file = open(filepath, 'w')
         
         json_output={}
         json_output['appName'] = self.appName
@@ -281,16 +279,11 @@ class Merge_Features:
             #features_clusters.append()
             
             list_app_features.append(feature_dict)
-            file.write("%s\n" % (','.join(feature_cluster)))
         
         #print('list of app features')
         #print(list_app_features)
         
         json_output['app_features'] = list_app_features
-                
-        
-        file.close()
-        
         return(json_output)
     
     def Merge(self,similarity_threshold=.80):
