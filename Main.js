@@ -82,21 +82,24 @@ var debugMode = false;
 
 app.get('/features', function(req, res){ 
 	console.log(req.url);
+	var apps = req.query.ids.split(',')
+	var appId = apps[0];
+	
 	if (debugMode === true && cachedMessage !== undefined) {
 	  res.set('Content-Type', 'application/json');
 		res.send({ 
-					id: req.query.id,
+					id: appId,
 					data: cachedMessage
 				});
 		return;
 	}
 	
-	store.app({id: parseInt(req.query.id)}).then(appValues => {  
+	store.app({id: parseInt(appId)}).then(appValues => {  
 		var promises = [];
 	
-		for (var i = 0; i < 10; i++) {
+		for (var i = 0; i < 3; i++) {
 		var promise = store.reviews({
-			id: req.query.id,
+			id: appId,
 			sort: store.sort.HELPFUL,
 			page: i
 			});
@@ -109,7 +112,7 @@ app.get('/features', function(req, res){
 			values = [].concat.apply([], values)
 
 			var dataToExtract = [{
-				appID : req.query.id,
+				appID : appId,
 				name : appValues.title,
 				description : appValues.description,
 				reviews: values,
@@ -129,7 +132,7 @@ app.get('/features', function(req, res){
 			  cachedMessage = message;
 				res.set('Content-Type', 'application/json');
 				  res.send({ 
-					id: req.query.id,
+					id: appId,
 					data: message
 				});
 			});

@@ -278,7 +278,7 @@ class Merge_Features:
                 cluster_mean.append(feature_vector.tolist())
             
             #make mean for cluster_mean
-            cluster_features.append({'cluster_mean' : np.mean(cluster_mean, axis=0).tolist() })
+            feature_dict['cluster_mean'] = np.mean(cluster_mean, axis=0).tolist()
             
             feature_dict['cluster_features'] = cluster_features
             #features_clusters.append()
