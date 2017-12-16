@@ -94,7 +94,7 @@ app.get('/features', function(req, res){
 	store.app({id: parseInt(req.query.id)}).then(appValues => {  
 		var promises = [];
 	
-		for (var i = 0; i < 6; i++) {
+		for (var i = 0; i < 10; i++) {
 		var promise = store.reviews({
 			id: req.query.id,
 			sort: store.sort.HELPFUL,

@@ -167,7 +167,7 @@ class Merge_Features:
     
     def GetAppFeatureEmbeddings(self):
         
-        app_features_embedding_dict={}
+        self.app_features_embedding_dict={}
         
         for i in range(0,len(self.app_features_freq)):
             app_feature = (self.app_features_freq[i])[0]
@@ -175,15 +175,16 @@ class Merge_Features:
             app_feature_vector = self.app_feature_words_vector(self.nlp(app_feature))
             
             if app_feature_vector.size!=0:
-                app_features_embedding_dict[app_feature] = app_feature_vector
+                self.app_features_embedding_dict[app_feature] = app_feature_vector
             else:
-                app_features_embedding_dict[app_feature] = np.zeros(300)
+                self.app_features_embedding_dict[app_feature] = np.zeros(300)
             
-        return(app_features_embedding_dict)
+        return(self.app_features_embedding_dict)
         
 
     def cluster_features_word_embeddings(self,similarity_threshold=.70):
-        app_features_embedding_dict = self.GetAppFeatureEmbeddings()
+        #change the app_features_embedding_dict to self.app_features_embedding_dict in every place
+        self.app_features_embedding_dict = self.GetAppFeatureEmbeddings()
         cosine = lambda v1, v2: np.dot(v1, v2) / (LA.norm(v1) * LA.norm(v2))
         
         self.feature_cluster_after_embedding=self.feature_cluster.copy()
@@ -193,11 +194,11 @@ class Merge_Features:
         
         for group_key_1,grouped_app_features_1 in self.feature_cluster.items():
             #print(group_key_1, " -> ",grouped_app_features_1)
-            embedding_vector_group_key_1 = app_features_embedding_dict[group_key_1]
+            embedding_vector_group_key_1 = self.app_features_embedding_dict[group_key_1]
             
             for group_key_2,grouped_app_features_2 in self.feature_cluster.items():
                 if group_key_1!=group_key_2:
-                    embedding_vector_group_key_2 = app_features_embedding_dict[group_key_2]
+                    embedding_vector_group_key_2 = self.app_features_embedding_dict[group_key_2]
                     dist = cosine(embedding_vector_group_key_1, embedding_vector_group_key_2)
                     
                     if dist>similarity_threshold and self.FeatureExistinSameKey(group_key_1,group_key_2,self.feature_cluster_after_embedding)==False:
@@ -213,7 +214,6 @@ class Merge_Features:
                             del self.feature_cluster_after_embedding[group_key_2]
             
             #print("#####################")
-        
     def PrintClusteredFeatures(self,app_features_cluster):
         #print("###############Cluster of app features###########")
         for key_app_feature, cluster_app_features in  app_features_cluster.items():
@@ -268,12 +268,17 @@ class Merge_Features:
             feature_dict['cluster_name']=key_app_feature
             cluster_features=[]
             feature_cluster = []
+            cluster_mean = []
             for feature_info in cluster_app_features:
                 app_feature = feature_info[0]
                 app_feature_freq = feature_info[1]
                 cluster_features.append({'feature':app_feature,'frequency':app_feature_freq})
                 feature_cluster.append(app_feature)
+                feature_vector = self.app_features_embedding_dict[app_feature]
+                cluster_mean.append(feature_vector.tolist())
             
+            #make mean for cluster_mean
+            cluster_features.append({'cluster_mean' : np.mean(cluster_mean, axis=0).tolist() })
             
             feature_dict['cluster_features'] = cluster_features
             #features_clusters.append()
