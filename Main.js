@@ -4,6 +4,8 @@ var app = express();
 var store = require('app-store-scraper');
 var PythonShell = require('python-shell');
 
+var allAppFeatures = { };
+
 app.listen(8081);
 app.set('json spaces', 2);
 var modeEnum = {
@@ -84,66 +86,86 @@ app.get('/features', function(req, res){
 	console.log(req.url);
 	var apps = req.query.ids.split(',')
 	var appId = apps[0];
-	
+
 	if (debugMode === true && cachedMessage !== undefined) {
-	  res.set('Content-Type', 'application/json');
+	  	res.set('Content-Type', 'application/json');
 		res.send({ 
 					id: appId,
 					data: cachedMessage
 				});
 		return;
 	}
-	
-	store.app({id: parseInt(appId)}).then(appValues => {  
-		var promises = [];
-	
-		for (var i = 0; i < 3; i++) {
-		var promise = store.reviews({
-			id: appId,
-			sort: store.sort.HELPFUL,
-			page: i
-			});
+		
+	var appPromises = [];
+	for (var i = 0; i < apps.length; i++) {
+		appPromises.push(store.app({id: parseInt(apps[i])}));
+	}
 
-			promises.push(promise);
-		}
-
-		Promise.all(promises).then(values => { 
+	Promise.all(appPromises).then(appValues => { 
+		mineData(appValues, req, function (allFeatures) { 
 			res.set('Content-Type', 'application/json');
-			values = [].concat.apply([], values)
+			res.send(allFeatures); });
+		});
+});
 
-			var dataToExtract = [{
-				appID : appId,
-				name : appValues.title,
-				description : appValues.description,
-				reviews: values,
-				appDescThreshold: parseFloat(req.query.desc_threshold),
-				featureThreshold: parseFloat(req.query.feature_threshold)
-			}];
 
-			var options = {
-				mode: 'json',
-				pythonPath: '/usr/local/bin/python3'
-			};
+function mineData(appValues, req, callback) {
+	console.log("mindeData() begining: " + appValues.length);
+	if (appValues.length == 0) {
+		console.log("returned");
+		callback(allAppFeatures);
+		return;
+	}
 
-			var pyshell = new PythonShell('feature-extraction/SAFE.py', options);
-			pyshell.send(dataToExtract);
+	var app = appValues[0];
 
-			pyshell.on('message', function (message) {
-			  cachedMessage = message;
-				res.set('Content-Type', 'application/json');
-				  res.send({ 
-					id: appId,
-					data: message
-				});
-			});
+	var promises = [];
+	
+	for (var i = 0; i < 1; i++) {
+	var promise = store.reviews({
+		id: app.id,
+		sort: store.sort.HELPFUL,
+		page: i
+		});
 
-			pyshell.end(function (err) {
-				if (err){ console.log(err); }
-				console.log('finished');
-			});
+		promises.push(promise);
+	}
+
+	Promise.all(promises).then(values => { 
+		values = [].concat.apply([], values)
+		console.log("logged reviews: " + values.length)
+
+		var dataToExtract = [{
+			appID : app.id,
+			name : app.title,
+			description : app.description,
+			reviews: values,
+			appDescThreshold: parseFloat(req.query.desc_threshold),
+			featureThreshold: parseFloat(req.query.feature_threshold)
+		}];
+
+		var options = {
+			mode: 'json',
+			pythonPath: '/usr/local/bin/python3'
+		};
+
+		var pyshell = new PythonShell('feature-extraction/SAFE.py', options);
+		pyshell.send(dataToExtract);
+
+		pyshell.on('message', function (message) {
+			console.log("before shifting: " + appValues.length);
+			appValues.shift();
+			console.log("after shifting: " + appValues.length);
+			allAppFeatures[app.id] = message;
+		});
+
+		pyshell.end(function (err) {
+			if (err){ console.log(err); }
+			console.log("finished");
+			mineData(appValues, req, callback);
 		});
 	});
-});
+}
 
 app.get("/app/name" , function(req, res) {  
 	res.set('Content-Type', 'application/json');
