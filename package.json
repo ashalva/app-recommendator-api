@@ -6,7 +6,9 @@
   "dependencies": {
     "app-store-scraper": "git+https://github.com/bbbuka/app-store-scraper.git",
     "express": "^4.16.1",
-    "python-shell": "^0.4.0"
+    "mathjs": "^3.18.0",
+    "python-shell": "^0.4.0",
+    "vectorious": "^4.8.1"
   },
   "devDependencies": {},
   "scripts": {
