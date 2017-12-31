@@ -286,7 +286,7 @@ function sendFailure(res, reason) {
 	res.set('Content-Type', 'application/json');
 	message.success = false;
 	message.reason = reason;
-	res.send();
+	res.send(message);
 }
 
 function mineData(appValues, req, callback) {
