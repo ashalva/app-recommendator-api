@@ -8,6 +8,7 @@
     "express": "^4.16.1",
     "mathjs": "^3.18.0",
     "python-shell": "^0.4.0",
+    "request": "^2.83.0",
     "vectorious": "^4.8.1"
   },
   "devDependencies": {},

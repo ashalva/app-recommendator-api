@@ -2,6 +2,7 @@
 var express = require('express');
 var app = express();
 var store = require('app-store-scraper');
+var request = require('request');
 var PythonShell = require('python-shell');
 var v = require('vectorious'),
     Matrix = v.Matrix,
@@ -115,7 +116,6 @@ app.get('/features', function(req, res){
 			for (var firstFeatureIndex in firstFeatures) {
 				var v1 = firstFeatures[firstFeatureIndex].cluster_mean;
 				var similarFeatureFound = false;
-				var otherClusterNames = [];
 				var similarityObject = {};
 
 				for (var secondFeatureIndex in secondFeatures) {
@@ -130,7 +130,6 @@ app.get('/features', function(req, res){
 				   	if (result > 0.80) {
 				   		similarFeatureFound = true;
 						similarityObject[result] = secondFeatures[secondFeatureIndex].cluster_features;
-						otherClusterNames.push(secondFeatures[secondFeatureIndex].cluster_name);
 					}
 				}
 
@@ -141,7 +140,6 @@ app.get('/features', function(req, res){
 					var secondAppFeatures = similarityObject[Math.max.apply(null, Object.keys(similarityObject))];
 					
 					combinedFeatures.data[mainClusterName] = {
-						'otherClusterNames': otherClusterNames,
 						'firstFeatures': firstFeatures[firstFeatureIndex].cluster_features,
 						'secondFeatures': secondAppFeatures
 					};
@@ -159,29 +157,29 @@ app.get('/features', function(req, res){
 });
 
 app.get('/sentiments', function(req, res) {
-	res.set('Content-Type', 'application/json');
 	if (combinedFeatures === undefined) {
-		message.success = false;
-		message.reason = 'features have not been mined';
-		res.send();
-	}
+		sendFailure(res, 'features have not been mined');
+		return;
+	}		
 
+	var url = "http://localhost:9000/?properties=%7B%22annotators%22:%20%22sentiment%22%7D&pipelineLanguage=en&timeout=30000";
 	var features = req.query.features.split(',');
 
     var returnSentiments = {};
+    var executedPromiseCount = 0;
     for (var i = 0; i < features.length; i++) {
         returnSentiments[features[i]] = combinedFeatures.data[features[i]];
 
-        var firstAppFeatureSentences = [];
-        var secondAppFeatureSentences = [];
+        var firstAppSentimentPromises = [];
+        var secondAppSentimentPromises = [];
 
         for (var sentenceKey in combinedFeatures.firstSentences) {
             var sentences = combinedFeatures.firstSentences[sentenceKey];
             for (var j in sentences) {
-                //comparing all feature names included in cluster
+                //comparing all feature names included in the cluster
                 for (var k in combinedFeatures.data[features[i]].firstFeatures) {
                 	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].firstFeatures[k].feature) !== -1) {
-                		firstAppFeatureSentences.push(sentences[j].sentence_text);
+                		firstAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
                 	}
                 }
             }
@@ -190,23 +188,106 @@ app.get('/sentiments', function(req, res) {
         for (var sentenceKey in combinedFeatures.secondSentences) {
             var sentences = combinedFeatures.secondSentences[sentenceKey];
             for (var j in sentences) {
+            	//comparing all feature names included in the cluster
                 for (var k in combinedFeatures.data[features[i]].secondFeatures) {
                 	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].secondFeatures[k].feature) !== -1) {
-                		secondAppFeatureSentences.push(sentences[j].sentence_text);
+                		secondAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
                 	}
                 }
             }
         }
 
-       returnSentiments[features[i]].firstAppFeatureSentences = firstAppFeatureSentences;
-       returnSentiments[features[i]].secondAppFeatureSentences = secondAppFeatureSentences;		
-   }
+   		returnSentiments[features[i]].firstAppSentiments = [];
+   		returnSentiments[features[i]].secondAppSentiments = [];
 
-	res.set('Content-Type', 'application/json');
-	res.send(returnSentiments);
+	    Promise.all(firstAppSentimentPromises).then(firstAppSentiments => {
+	    	executedPromiseCount += 1;
+	    	for (var i = 0; i < firstAppSentiments.length; i++) {
+	    		var identifier = firstAppSentiments[i].identifier;
+				var sentence = firstAppSentiments[i].sentence;
+	    		var sentAverage = 0;
+	    		for (var j = 0; j < firstAppSentiments[i].sentences.length; j++) {
+	    			sentAverage += parseInt(firstAppSentiments[i].sentences[j].sentimentValue);
+	    		}
+	    		sentAverage /= firstAppSentiments[i].sentences.length;
+
+	    		returnSentiments[features[identifier]].firstAppSentiments.push( { 
+	    			'sentence': sentence,
+	    			'sentiment': sentAverage
+	    		});
+
+	    		if (executedPromiseCount/2 === features.length) {
+	    			res.set('Content-Type', 'application/json');	
+					res.send(returnSentiments);
+	    		}
+	    	}
+	    });
+
+	    Promise.all(secondAppSentimentPromises).then(secondAppSentiments => {
+	    		executedPromiseCount += 1;
+		    	for (var i = 0; i < secondAppSentiments.length; i++) {
+		    		var identifier = secondAppSentiments[i].identifier;
+					var sentence = secondAppSentiments[i].sentence;
+		    		var sentAverage = 0;
+
+		    		for (var j = 0; j < secondAppSentiments[i].sentences.length; j++) {
+		    			sentAverage += parseInt(secondAppSentiments[i].sentences[j].sentimentValue);
+		    		}
+		    		sentAverage /= secondAppSentiments[i].sentences.length;
+
+		    		returnSentiments[features[identifier]].secondAppSentiments.push( { 
+		    			'sentence': sentence,
+		    			'sentiment': sentAverage
+		    		});
+	    		}
+
+	    		if (executedPromiseCount/2 === features.length) {
+	    			res.set('Content-Type', 'application/json');	
+					res.send(returnSentiments);
+	    		}
+	    });
+	}
 });
 
 
+function httpPromisePostAsync(theUrl, requestBody, identifier) {
+	return new Promise(function(resolve, reject) { 
+		request.timeout = 30000;
+		request.post(theUrl, { json: JSON.stringify(requestBody) },
+		    function (error, response, body) {
+		        if (!error && response.statusCode == 200) {
+		        	body.sentence = requestBody;
+		        	body.identifier = identifier;
+		            resolve(body);
+		        } else {
+		        	reject(Error(error));
+		        }
+		    }
+		);
+	});
+}
+
+function httpPostAsync(theUrl, requestBody, callback) {
+	request.timeout = 30000;
+	request.post(theUrl, { json: JSON.stringify(requestBody) },
+	    function (error, response, body) {
+	        if (!error && response.statusCode == 200) {
+	        	var r = response;
+	        	r.sentence = requestBody;
+	            callback(r);
+	        } else {
+	        	reject(Error(error));
+	        }
+	    }
+	);
+}
+
+function sendFailure(res, reason) {
+	res.set('Content-Type', 'application/json');
+	message.success = false;
+	message.reason = reason;
+	res.send();
+}
 
 function mineData(appValues, req, callback) {
 	console.log("mindeData() begining: " + appValues.length);
