@@ -87,7 +87,7 @@ app.get('/app/description', function(req, res){
 });
 
 
-var debugMode = true;
+var debugMode = false;
 app.get('/features', function(req, res){ 
 
 	var apps = req.query.ids.split(',')
@@ -111,7 +111,7 @@ app.get('/features', function(req, res){
 			var firstFeatures = allFeatures[apps[0]].features;
 			var secondFeatures = allFeatures[apps[1]].features;
 
-			var featureNamesToReturn = [];
+			var featuresToReturn = [];
 			
 			for (var firstFeatureIndex in firstFeatures) {
 				var v1 = firstFeatures[firstFeatureIndex].cluster_mean;
@@ -135,14 +135,21 @@ app.get('/features', function(req, res){
 
 				if (similarFeatureFound) {
 					var mainClusterName = firstFeatures[firstFeatureIndex].cluster_name;
-					featureNamesToReturn.push(mainClusterName);
-
 					var secondAppFeatures = similarityObject[Math.max.apply(null, Object.keys(similarityObject))];
 					
 					combinedFeatures.data[mainClusterName] = {
 						'firstFeatures': firstFeatures[firstFeatureIndex].cluster_features,
 						'secondFeatures': secondAppFeatures
 					};
+
+					var ff = combinedFeatures.data[mainClusterName].firstFeatures.map(f => f.feature);
+					var sf = combinedFeatures.data[mainClusterName].secondFeatures.map(f => f.feature);
+					var cluster = {
+						'cluster_name' : mainClusterName,
+						'features': ff.concat(sf)
+					};
+
+					featuresToReturn.push(cluster);
 				}
 			}
 
@@ -150,11 +157,13 @@ app.get('/features', function(req, res){
 			combinedFeatures['secondSentences'] = allFeatures[apps[1]].sentences;
 			
 			res.set('Content-Type', 'application/json');
-			res.send(combinedFeatures);
+			res.send(featuresToReturn);
 			
 			});
 		});
 });
+
+
 
 app.get('/sentiments', function(req, res) {
 	if (combinedFeatures === undefined) {
@@ -201,6 +210,10 @@ app.get('/sentiments', function(req, res) {
    		returnSentiments[features[i]].secondAppSentiments = [];
 
 	    Promise.all(firstAppSentimentPromises).then(firstAppSentiments => {
+	    	if (firstAppSentiments.length > 0) {
+	    		console.log('first app sentiments for: ' + features[firstAppSentiments[0].identifier] + ' retrieved' )	
+	    	}
+
 	    	executedPromiseCount += 1;
 	    	for (var i = 0; i < firstAppSentiments.length; i++) {
 	    		var identifier = firstAppSentiments[i].identifier;
@@ -216,17 +229,34 @@ app.get('/sentiments', function(req, res) {
 	    			'sentiment': sentAverage
 	    		});
 
-	    		if (executedPromiseCount/2 === features.length) {
-	    			res.set('Content-Type', 'application/json');	
-					res.send(returnSentiments);
+	    		if (returnSentiments[features[identifier]].firstAppSentimentAverage !== undefined) {
+	    			returnSentiments[features[identifier]].firstAppSentimentAverage += sentAverage;	
+	    		} else {
+	    			returnSentiments[features[identifier]].firstAppSentimentAverage = sentAverage;
 	    		}
 	    	}
+
+	    	if (firstAppSentiments.length > 0) { 
+				returnSentiments[features[identifier]].firstAppSentimentAverage /= firstAppSentiments.length;
+			}
+    		
+    		if (executedPromiseCount / 2 === features.length) {
+    			executedPromiseCount = 0;
+    			
+    			res.set('Content-Type', 'application/json');
+				res.send(returnSentiments);
+    		}
 	    });
 
 	    Promise.all(secondAppSentimentPromises).then(secondAppSentiments => {
+	    		if (secondAppSentiments.length > 0) {
+	    			console.log('second app sentiments for: ' + features[secondAppSentiments[0].identifier] + ' retrieved' )	
+	    		}
+
 	    		executedPromiseCount += 1;
 		    	for (var i = 0; i < secondAppSentiments.length; i++) {
 		    		var identifier = secondAppSentiments[i].identifier;
+
 					var sentence = secondAppSentiments[i].sentence;
 		    		var sentAverage = 0;
 
@@ -239,10 +269,22 @@ app.get('/sentiments', function(req, res) {
 		    			'sentence': sentence,
 		    			'sentiment': sentAverage
 		    		});
+
+		    		if (returnSentiments[features[identifier]].secondAppSentimentAverage !== undefined) {
+		    			returnSentiments[features[identifier]].secondAppSentimentAverage += sentAverage;	
+		    		} else {
+		    			returnSentiments[features[identifier]].secondAppSentimentAverage = sentAverage;
+		    		}
 	    		}
 
-	    		if (executedPromiseCount/2 === features.length) {
-	    			res.set('Content-Type', 'application/json');	
+	    		if (secondAppSentiments.length > 0) {
+		    		returnSentiments[features[identifier]].secondAppSentimentAverage /= secondAppSentiments.length;
+		    	}
+
+	    		if (executedPromiseCount / 2 === features.length) {
+	    			executedPromiseCount = 0;
+
+	    			res.set('Content-Type', 'application/json');
 					res.send(returnSentiments);
 	    		}
 	    });
@@ -290,9 +332,9 @@ function sendFailure(res, reason) {
 }
 
 function mineData(appValues, req, callback) {
-	console.log("mindeData() begining: " + appValues.length);
+	console.log("mineData() begining: " + appValues.length);
 	if (appValues.length == 0) {
-		console.log("returned");
+		console.log("**** returned ****");
 		callback(allAppFeatures);
 		return;
 	}
