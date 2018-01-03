@@ -194,7 +194,8 @@ if __name__ == '__main__':
     review_sents_with_features = obj_surf.GetReview_Sents_WithExtractedFeatures()
     
     print(json.dumps({'features': json_output['app_features'],
-                      'sentences': review_sents_with_features}))
+                      'sentences': review_sents_with_features,
+                      'appName': appName}))
    
     #     predicted_features_json =json_output['app_features']
 #     #print(predicted_features_json)

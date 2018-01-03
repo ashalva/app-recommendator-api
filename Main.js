@@ -108,6 +108,9 @@ app.get('/features', function(req, res){
 		mineData(appValues, req, function (allFeatures) { 
 
 			combinedFeatures = { 'data' : {} };
+			combinedFeatures.firstAppName = allFeatures[apps[0]].appName;
+			combinedFeatures.secondAppName = allFeatures[apps[1]].appName;
+
 			var firstFeatures = allFeatures[apps[0]].features;
 			var secondFeatures = allFeatures[apps[1]].features;
 
@@ -170,14 +173,16 @@ app.get('/sentiments', function(req, res) {
 		sendFailure(res, 'features have not been mined');
 		return;
 	}		
-
 	var url = "http://localhost:9000/?properties=%7B%22annotators%22:%20%22sentiment%22%7D&pipelineLanguage=en&timeout=30000";
 	var features = req.query.features.split(',');
 
     var returnSentiments = {};
+    
     var executedPromiseCount = 0;
     for (var i = 0; i < features.length; i++) {
         returnSentiments[features[i]] = combinedFeatures.data[features[i]];
+        returnSentiments[features[i]].firstAppName = combinedFeatures.firstAppName;
+		returnSentiments[features[i]].secondAppName = combinedFeatures.secondAppName;
 
         var firstAppSentimentPromises = [];
         var secondAppSentimentPromises = [];
@@ -343,7 +348,7 @@ function mineData(appValues, req, callback) {
 
 	var promises = [];
 	
-	for (var i = 0; i < 6; i++) {
+	for (var i = 0; i < 1; i++) {
 	var promise = store.reviews({
 		id: app.id,
 		sort: store.sort.HELPFUL,
