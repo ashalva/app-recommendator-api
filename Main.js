@@ -186,14 +186,18 @@ app.get('/sentiments', function(req, res) {
 
         var firstAppSentimentPromises = [];
         var secondAppSentimentPromises = [];
+        var firstAppSentences = [];
+        var secondAppSentences = [];
 
         for (var sentenceKey in combinedFeatures.firstSentences) {
             var sentences = combinedFeatures.firstSentences[sentenceKey];
             for (var j in sentences) {
                 //comparing all feature names included in the cluster
                 for (var k in combinedFeatures.data[features[i]].firstFeatures) {
-                	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].firstFeatures[k].feature) !== -1) {
+                	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].firstFeatures[k].feature) !== -1 &&
+                		firstAppSentences.indexOf(sentences[j].sentence_text) == -1) {
                 		firstAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
+                		firstAppSentences.push(sentences[j].sentence_text);
                 	}
                 }
             }
@@ -204,8 +208,10 @@ app.get('/sentiments', function(req, res) {
             for (var j in sentences) {
             	//comparing all feature names included in the cluster
                 for (var k in combinedFeatures.data[features[i]].secondFeatures) {
-                	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].secondFeatures[k].feature) !== -1) {
+                	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].secondFeatures[k].feature) !== -1 &&
+                		secondAppSentences.indexOf(sentences[j].sentence_text) == -1) {
                 		secondAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
+                		secondAppSentences.push(sentences[j].sentence_text);
                 	}
                 }
             }
@@ -216,7 +222,7 @@ app.get('/sentiments', function(req, res) {
 
 	    Promise.all(firstAppSentimentPromises).then(firstAppSentiments => {
 	    	if (firstAppSentiments.length > 0) {
-	    		console.log('first app sentiments for: ' + features[firstAppSentiments[0].identifier] + ' retrieved' )	
+	    		console.log('first app sentiments for: \'' + features[firstAppSentiments[0].identifier] + '\' retrieved' );	
 	    	}
 
 	    	executedPromiseCount += 1;
@@ -224,10 +230,11 @@ app.get('/sentiments', function(req, res) {
 	    		var identifier = firstAppSentiments[i].identifier;
 				var sentence = firstAppSentiments[i].sentence;
 	    		var sentAverage = 0;
-	    		for (var j = 0; j < firstAppSentiments[i].sentences.length; j++) {
+	    		for (var j = 0; j < firstAppSentiments[i].sentences.length - 1; j++) {
 	    			sentAverage += parseInt(firstAppSentiments[i].sentences[j].sentimentValue);
 	    		}
-	    		sentAverage /= firstAppSentiments[i].sentences.length;
+
+	    		sentAverage /= (firstAppSentiments[i].sentences.length - 1);
 
 	    		returnSentiments[features[identifier]].firstAppSentiments.push( { 
 	    			'sentence': sentence,
@@ -348,7 +355,7 @@ function mineData(appValues, req, callback) {
 
 	var promises = [];
 	
-	for (var i = 0; i < 1; i++) {
+	for (var i = 0; i < 9; i++) {
 	var promise = store.reviews({
 		id: app.id,
 		sort: store.sort.HELPFUL,
