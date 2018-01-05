@@ -167,6 +167,28 @@ app.get('/features', function(req, res){
 });
 
 
+app.get('/reviews', function(req, res) {
+
+	var promises = [];
+	
+	for (var i = 0; i < 9; i++) {
+		var promise = store.reviews({
+			id: req.query.id,
+			sort: store.sort.HELPFUL,
+			page: i
+			});
+
+			promises.push(promise);
+	}
+	
+
+	Promise.all(promises).then(values => { 
+		values = [].concat.apply([], values)
+		res.set('Content-Type', 'application/json');
+		res.send(values);
+	});
+
+});
 
 app.get('/sentiments', function(req, res) {
 	if (combinedFeatures === undefined) {
@@ -355,7 +377,7 @@ function mineData(appValues, req, callback) {
 
 	var promises = [];
 	
-	for (var i = 0; i < 9; i++) {
+	for (var i = 0; i < 1; i++) {
 	var promise = store.reviews({
 		id: app.id,
 		sort: store.sort.HELPFUL,
