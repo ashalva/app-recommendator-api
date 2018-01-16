@@ -33,22 +33,10 @@ app.get('/categories', function(req, res){
 app.get('/apps', function(req, res){
    	store.list({
 		category: parseInt(req.query.category),
-		num: 100
+		num: 200
 	  }).then(function(result) {
 		res.set('Content-Type', 'application/json');	  
-		
-		var promises = [];
-		for (var i = 0; i < result.length; i++) {
-			var promise = store.app({id: parseInt(result[i].id)})
-			promises.push(promise);
-		}
-
-		Promise.all(promises).then(values => { 
-			for (var i = 0; i< values.length; i++) {
-				result[i].version = values[i].version;
-			}	
-			res.send(result)
-		});
+		res.send(result)
 	});
 });
 
@@ -105,6 +93,8 @@ app.get('/features', function(req, res){
 	}
 
 	Promise.all(appPromises).then(appValues => { 
+		//empty global variable not to save previously requested data
+		allAppFeatures = { };
 		mineData(appValues, req, function (allFeatures) { 
 
 			combinedFeatures = { 'data' : {} };
@@ -171,7 +161,7 @@ app.get('/reviews', function(req, res) {
 
 	var promises = [];
 	
-	for (var i = 0; i < 9; i++) {
+	for (var i = 0; i < 10; i++) {
 		var promise = store.reviews({
 			id: req.query.id,
 			sort: store.sort.HELPFUL,
@@ -181,7 +171,6 @@ app.get('/reviews', function(req, res) {
 			promises.push(promise);
 	}
 	
-
 	Promise.all(promises).then(values => { 
 		values = [].concat.apply([], values)
 		res.set('Content-Type', 'application/json');
@@ -197,14 +186,17 @@ app.get('/sentiments', function(req, res) {
 	}		
 	var url = "http://localhost:9000/?properties=%7B%22annotators%22:%20%22sentiment%22%7D&pipelineLanguage=en&timeout=30000";
 	var features = req.query.features.split(',');
+	console.log(features);
 
-    var returnSentiments = {};
+    var returnSentiments = { };
     
     var executedPromiseCount = 0;
     for (var i = 0; i < features.length; i++) {
         returnSentiments[features[i]] = combinedFeatures.data[features[i]];
         returnSentiments[features[i]].firstAppName = combinedFeatures.firstAppName;
 		returnSentiments[features[i]].secondAppName = combinedFeatures.secondAppName;
+		returnSentiments[features[i]].firstAppSentimentAverage = 0;
+		returnSentiments[features[i]].secondAppSentimentAverage = 0;
 
         var firstAppSentimentPromises = [];
         var secondAppSentimentPromises = [];
@@ -247,11 +239,15 @@ app.get('/sentiments', function(req, res) {
 	    		console.log('first app sentiments for: \'' + features[firstAppSentiments[0].identifier] + '\' retrieved' );	
 	    	}
 
-	    	executedPromiseCount += 1;
 	    	for (var i = 0; i < firstAppSentiments.length; i++) {
 	    		var identifier = firstAppSentiments[i].identifier;
 				var sentence = firstAppSentiments[i].sentence;
 	    		var sentAverage = 0;
+
+	    		if (returnSentiments[features[identifier]].firstAppSentimentAverage === undefined) {
+	    			returnSentiments[features[identifier]].firstAppSentimentAverage = 0;
+	    		}
+
 	    		for (var j = 0; j < firstAppSentiments[i].sentences.length - 1; j++) {
 	    			sentAverage += parseInt(firstAppSentiments[i].sentences[j].sentimentValue);
 	    		}
@@ -263,18 +259,17 @@ app.get('/sentiments', function(req, res) {
 	    			'sentiment': sentAverage
 	    		});
 
-	    		if (returnSentiments[features[identifier]].firstAppSentimentAverage !== undefined) {
-	    			returnSentiments[features[identifier]].firstAppSentimentAverage += sentAverage;	
-	    		} else {
-	    			returnSentiments[features[identifier]].firstAppSentimentAverage = sentAverage;
-	    		}
+    			returnSentiments[features[identifier]].firstAppSentimentAverage += sentAverage;
+    			
+    			if (i === firstAppSentiments.length - 1) { 
+					returnSentiments[features[identifier]].firstAppSentimentAverage /= firstAppSentiments.length;
+				}
 	    	}
 
-	    	if (firstAppSentiments.length > 0) { 
-				returnSentiments[features[identifier]].firstAppSentimentAverage /= firstAppSentiments.length;
-			}
-    		
-    		if (executedPromiseCount / 2 === features.length) {
+	    	
+
+    		executedPromiseCount += 1;
+    		if (executedPromiseCount / 2 === features.length && executedPromiseCount % 2 === 0) {
     			executedPromiseCount = 0;
     			
     			res.set('Content-Type', 'application/json');
@@ -287,12 +282,14 @@ app.get('/sentiments', function(req, res) {
 	    			console.log('second app sentiments for: ' + features[secondAppSentiments[0].identifier] + ' retrieved' )	
 	    		}
 
-	    		executedPromiseCount += 1;
 		    	for (var i = 0; i < secondAppSentiments.length; i++) {
 		    		var identifier = secondAppSentiments[i].identifier;
-
 					var sentence = secondAppSentiments[i].sentence;
 		    		var sentAverage = 0;
+
+		    		if (returnSentiments[features[identifier]].secondAppSentimentAverage === undefined) {
+	    				returnSentiments[features[identifier]].secondAppSentimentAverage = 0;
+	    			}
 
 		    		for (var j = 0; j < secondAppSentiments[i].sentences.length; j++) {
 		    			sentAverage += parseInt(secondAppSentiments[i].sentences[j].sentimentValue);
@@ -304,18 +301,16 @@ app.get('/sentiments', function(req, res) {
 		    			'sentiment': sentAverage
 		    		});
 
-		    		if (returnSentiments[features[identifier]].secondAppSentimentAverage !== undefined) {
-		    			returnSentiments[features[identifier]].secondAppSentimentAverage += sentAverage;	
-		    		} else {
-		    			returnSentiments[features[identifier]].secondAppSentimentAverage = sentAverage;
-		    		}
+	    			returnSentiments[features[identifier]].secondAppSentimentAverage += sentAverage;	
+		    			
+		    		if (i === secondAppSentiments.length - 1) {
+			    		returnSentiments[features[identifier]].secondAppSentimentAverage /= secondAppSentiments.length;
+			    	}
 	    		}
 
-	    		if (secondAppSentiments.length > 0) {
-		    		returnSentiments[features[identifier]].secondAppSentimentAverage /= secondAppSentiments.length;
-		    	}
 
-	    		if (executedPromiseCount / 2 === features.length) {
+				executedPromiseCount += 1;
+	    		if (executedPromiseCount / 2 === features.length && executedPromiseCount % 2 === 0) {
 	    			executedPromiseCount = 0;
 
 	    			res.set('Content-Type', 'application/json');
@@ -389,7 +384,7 @@ function mineData(appValues, req, callback) {
 
 	Promise.all(promises).then(values => { 
 		values = [].concat.apply([], values)
-		console.log("logged reviews: " + values.length)
+		console.log("number of reviews: " + values.length)
 
 		var dataToExtract = [{
 			appID : app.id,
