@@ -109,7 +109,7 @@ app.get('/features', function(req, res){
 			for (var firstFeatureIndex in firstFeatures) {
 				var v1 = firstFeatures[firstFeatureIndex].cluster_mean;
 				var similarFeatureFound = false;
-				var similarityObject = {};
+				var secondAppFeatures = [];
 
 				for (var secondFeatureIndex in secondFeatures) {
 					var v2 = secondFeatures[secondFeatureIndex].cluster_mean;
@@ -122,14 +122,13 @@ app.get('/features', function(req, res){
 				   	var result = Vector.dot(a, b) / (math.norm(v1) * math.norm(v2));
 				   	if (result > 0.80) {
 				   		similarFeatureFound = true;
-						similarityObject[result] = secondFeatures[secondFeatureIndex].cluster_features;
+						secondAppFeatures = secondFeatures[secondFeatureIndex].cluster_features;
 					}
 				}
 
 				if (similarFeatureFound) {
 					var mainClusterName = firstFeatures[firstFeatureIndex].cluster_name;
-					var secondAppFeatures = similarityObject[Math.max.apply(null, Object.keys(similarityObject))];
-					
+
 					combinedFeatures.data[mainClusterName] = {
 						'firstFeatures': firstFeatures[firstFeatureIndex].cluster_features,
 						'secondFeatures': secondAppFeatures
@@ -253,6 +252,10 @@ app.get('/sentiments', function(req, res) {
 	    		}
 
 	    		sentAverage /= (firstAppSentiments[i].sentences.length - 1);
+				//if sentiment is NaN assume it as normal
+	    		if (sentAverage !== sentAverage) {
+	    			sentAverage = 2;	
+	    		}
 
 	    		returnSentiments[features[identifier]].firstAppSentiments.push( { 
 	    			'sentence': sentence,
@@ -294,11 +297,19 @@ app.get('/sentiments', function(req, res) {
 		    		for (var j = 0; j < secondAppSentiments[i].sentences.length; j++) {
 		    			sentAverage += parseInt(secondAppSentiments[i].sentences[j].sentimentValue);
 		    		}
+
 		    		sentAverage /= secondAppSentiments[i].sentences.length;
+		    		//if sentiment is null asume it as normal
+		    		if (sentAverage !== sentAverage) {
+		    			sentAverage = 2;	
+		    		}
+		    		if (!(sentAverage > 0)) {
+		    			console.log(sentAverage);
+		    		}
 
 		    		returnSentiments[features[identifier]].secondAppSentiments.push( { 
 		    			'sentence': sentence,
-		    			'sentiment': sentAverage
+	    				'sentiment': sentAverage
 		    		});
 
 	    			returnSentiments[features[identifier]].secondAppSentimentAverage += sentAverage;	
@@ -372,7 +383,7 @@ function mineData(appValues, req, callback) {
 
 	var promises = [];
 	
-	for (var i = 0; i < 1; i++) {
+	for (var i = 0; i < 10; i++) {
 	var promise = store.reviews({
 		id: app.id,
 		sort: store.sort.HELPFUL,
