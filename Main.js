@@ -79,6 +79,12 @@ var debugMode = false;
 app.get('/features', function(req, res){ 
 
 	var apps = req.query.ids.split(',')
+
+	if (apps.length === 1 && apps[0] === '') {
+		sendFailure(res, 'One or Two apps should be selected')	
+		return;
+	}
+
 	var appId = apps[0];
 
 	if (debugMode === true && combinedFeatures !== undefined) {
