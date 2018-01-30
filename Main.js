@@ -79,6 +79,7 @@ var debugMode = false;
 app.get('/features', function(req, res){ 
 
 	var apps = req.query.ids.split(',')
+	console.log(req.url);
 
 	if (apps.length === 1 && apps[0] === '') {
 		sendFailure(res, 'One or Two apps should be selected')	
@@ -139,6 +140,7 @@ function getOneAppFeatures(allFeatures, apps) {
 	}
 
 	combinedFeatures['firstSentences'] = allFeatures[apps[0]].sentences;
+
 	return featuresToReturn;
 }
 
@@ -224,6 +226,8 @@ app.get('/reviews', function(req, res) {
 });
 
 app.get('/sentiments', function(req, res) {
+	console.log(req.url);
+
 	if (combinedFeatures === undefined) {
 		sendFailure(res, 'features have not been mined');
 		return;
@@ -260,12 +264,14 @@ function handleTwoAppSentiments(res, features, url) {
             for (var j in sentences) {
                 //comparing all feature names included in the cluster
                 for (var k in combinedFeatures.data[features[i]].firstFeatures) {
-                	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].firstFeatures[k].feature) !== -1 &&
-                		firstAppSentences.indexOf(sentences[j].sentence_text) == -1) {
-                		firstAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
-                		firstAppSentences.push(sentences[j].sentence_text);
-                	}
-                }
+	            	for (var extractedFeatureIndex in sentences[j].extracted_features) {
+	            		if (combinedFeatures.data[features[i]].firstFeatures[k].feature === sentences[j].extracted_features[extractedFeatureIndex] &&
+	            			firstAppSentences.indexOf(sentences[j].sentence_text) == -1) {
+	            			firstAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
+	                		firstAppSentences.push(sentences[j].sentence_text);
+	            		}
+	            	}
+            	}
             }
         }
 
@@ -274,12 +280,14 @@ function handleTwoAppSentiments(res, features, url) {
             for (var j in sentences) {
             	//comparing all feature names included in the cluster
                 for (var k in combinedFeatures.data[features[i]].secondFeatures) {
-                	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].secondFeatures[k].feature) !== -1 &&
-                		secondAppSentences.indexOf(sentences[j].sentence_text) == -1) {
-                		secondAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
-                		secondAppSentences.push(sentences[j].sentence_text);
-                	}
-                }
+	            	for (var extractedFeatureIndex in sentences[j].extracted_features) {
+	            		if (combinedFeatures.data[features[i]].secondFeatures[k].feature === sentences[j].extracted_features[extractedFeatureIndex] &&
+	            			secondAppSentences.indexOf(sentences[j].sentence_text) == -1) {
+	            			secondAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
+	                		secondAppSentences.push(sentences[j].sentence_text);
+	            		}
+	            	}
+            	}
             }
         }
 
@@ -388,7 +396,6 @@ function handleOneAppSentiments(res, features, url) {
 	var returnSentiments = { };
     var executedPromiseCount = 0;
 
-
     for (var i = 0; i < features.length; i++) {
         returnSentiments[features[i]] = combinedFeatures.data[features[i]];
         returnSentiments[features[i]].comparison = false;
@@ -401,16 +408,26 @@ function handleOneAppSentiments(res, features, url) {
         for (var sentenceKey in combinedFeatures.firstSentences) {
             var sentences = combinedFeatures.firstSentences[sentenceKey];
             for (var j in sentences) {
-                //comparing all feature names included in the cluster
-                for (var k in combinedFeatures.data[features[i]].firstFeatures) {
-                	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].firstFeatures[k].feature) !== -1 &&
-                		firstAppSentences.indexOf(sentences[j].sentence_text) == -1) {
-                		firstAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
-                		firstAppSentences.push(sentences[j].sentence_text);
-                	}
-                }
+            	for (var k in combinedFeatures.data[features[i]].firstFeatures) {
+	            	for (var extractedFeatureIndex in sentences[j].extracted_features) {
+	            		if (combinedFeatures.data[features[i]].firstFeatures[k].feature === sentences[j].extracted_features[extractedFeatureIndex] &&
+	            			firstAppSentences.indexOf(sentences[j].sentence_text) == -1) {
+	            			firstAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
+	                		firstAppSentences.push(sentences[j].sentence_text);
+	            		}
+	            	}
+            	}
+                // for (var k in combinedFeatures.data[features[i]].firstFeatures) {
+                // 	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].firstFeatures[k].feature) !== -1 && 
+                // 		firstAppSentences.indexOf(sentences[j].sentence_text) == -1) {
+                // 		firstAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
+                // 		firstAppSentences.push(sentences[j].sentence_text);
+                // 	}
+                // }
             }
         }
+
+        console.log("found sentences: " + firstAppSentimentPromises.length);
 
         returnSentiments[features[i]].firstAppSentiments = [];
 
@@ -474,6 +491,8 @@ function httpPromisePostAsync(theUrl, requestBody, identifier) {
 		        	body.identifier = identifier;
 		            resolve(body);
 		        } else {
+		        	console.log(response);
+		        	console.log(error);
 		        	reject(Error(error));
 		        }
 		    }
@@ -490,6 +509,8 @@ function httpPostAsync(theUrl, requestBody, callback) {
 	        	r.sentence = requestBody;
 	            callback(r);
 	        } else {
+	        	console.log(response);
+	        	console.log(error);
 	        	reject(Error(error));
 	        }
 	    }
@@ -515,7 +536,7 @@ function mineData(appValues, req, callback) {
 
 	var promises = [];
 	
-	for (var i = 0; i < 1; i++) {
+	for (var i = 0; i < 10; i++) {
 	var promise = store.reviews({
 		id: app.id,
 		sort: store.sort.HELPFUL,
