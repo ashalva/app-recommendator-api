@@ -33,7 +33,7 @@ app.get('/categories', function(req, res){
 app.get('/apps', function(req, res){
    	store.list({
 		category: parseInt(req.query.category),
-		num: 200
+		num: 100
 	  }).then(function(result) {
 		res.set('Content-Type', 'application/json');	  
 		res.send(result)
@@ -243,6 +243,11 @@ app.get('/sentiments', function(req, res) {
 	}
 });
 
+function round(num) {
+  num = Math.round(num+'e'+2)
+  return Number(num+'e-'+2)
+}
+
 function handleTwoAppSentiments(res, features, url) {
 	var returnSentiments = { };
     var executedPromiseCount = 0;
@@ -313,6 +318,7 @@ function handleTwoAppSentiments(res, features, url) {
 	    		}
 
 	    		sentAverage /= (firstAppSentiments[i].sentences.length - 1);
+	    		sentAverage = round(sentAverage);
 				//if sentiment is NaN assume it as normal
 	    		if (sentAverage !== sentAverage) {
 	    			sentAverage = 2;	
@@ -327,6 +333,7 @@ function handleTwoAppSentiments(res, features, url) {
     			
     			if (i === firstAppSentiments.length - 1) { 
 					returnSentiments[features[identifier]].firstAppSentimentAverage /= firstAppSentiments.length;
+					returnSentiments[features[identifier]].firstAppSentimentAverage = round(returnSentiments[features[identifier]].firstAppSentimentAverage);
 				}
 	    	}
 
@@ -360,7 +367,9 @@ function handleTwoAppSentiments(res, features, url) {
 		    		}
 
 		    		sentAverage /= secondAppSentiments[i].sentences.length;
-		    		//if sentiment is null asume it as normal
+		    		sentAverage = round(sentAverage);
+
+		    		//if sentiment is null assume it as normal
 		    		if (sentAverage !== sentAverage) {
 		    			sentAverage = 2;	
 		    		}
@@ -377,6 +386,7 @@ function handleTwoAppSentiments(res, features, url) {
 		    			
 		    		if (i === secondAppSentiments.length - 1) {
 			    		returnSentiments[features[identifier]].secondAppSentimentAverage /= secondAppSentiments.length;
+			    		returnSentiments[features[identifier]].secondAppSentimentAverage = round(returnSentiments[features[identifier]].secondAppSentimentAverage);
 			    	}
 	    		}
 
@@ -417,13 +427,6 @@ function handleOneAppSentiments(res, features, url) {
 	            		}
 	            	}
             	}
-                // for (var k in combinedFeatures.data[features[i]].firstFeatures) {
-                // 	if (sentences[j].sentence_text.indexOf(combinedFeatures.data[features[i]].firstFeatures[k].feature) !== -1 && 
-                // 		firstAppSentences.indexOf(sentences[j].sentence_text) == -1) {
-                // 		firstAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
-                // 		firstAppSentences.push(sentences[j].sentence_text);
-                // 	}
-                // }
             }
         }
 
@@ -450,6 +453,7 @@ function handleOneAppSentiments(res, features, url) {
 	    		}
 
 	    		sentAverage /= (firstAppSentiments[i].sentences.length - 1);
+	    		sentAverage = round(sentAverage);
 				//if sentiment is NaN assume it as normal
 	    		if (sentAverage !== sentAverage) {
 	    			sentAverage = 2;	
@@ -464,6 +468,7 @@ function handleOneAppSentiments(res, features, url) {
     			
     			if (i === firstAppSentiments.length - 1) { 
 					returnSentiments[features[identifier]].firstAppSentimentAverage /= firstAppSentiments.length;
+					returnSentiments[features[identifier]].firstAppSentimentAverage = round(returnSentiments[features[identifier]].firstAppSentimentAverage);
 				}
 	    	}
 
