@@ -341,6 +341,7 @@ function handleTwoAppSentiments(res, features, url) {
 
     		executedPromiseCount += 1;
     		if (executedPromiseCount / 2 === features.length && executedPromiseCount % 2 === 0) {
+    			console.log('finished sentiment analysis');
     			executedPromiseCount = 0;
     			
     			res.set('Content-Type', 'application/json');
@@ -393,6 +394,7 @@ function handleTwoAppSentiments(res, features, url) {
 
 				executedPromiseCount += 1;
 	    		if (executedPromiseCount / 2 === features.length && executedPromiseCount % 2 === 0) {
+	    			console.log('finished sentiment analysis');
 	    			executedPromiseCount = 0;
 
 	    			res.set('Content-Type', 'application/json');
