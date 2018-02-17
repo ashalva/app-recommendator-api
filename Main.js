@@ -304,6 +304,8 @@ function handleTwoAppSentiments(res, features, url) {
 	    		console.log('first app sentiments for: \'' + features[firstAppSentiments[0].identifier] + '\' retrieved' );	
 	    	}
 
+
+	    	var zeroSentimentCount = 0;
 	    	for (var i = 0; i < firstAppSentiments.length; i++) {
 	    		var identifier = firstAppSentiments[i].identifier;
 				var sentence = firstAppSentiments[i].sentence;
@@ -319,10 +321,17 @@ function handleTwoAppSentiments(res, features, url) {
 
 	    		sentAverage /= (firstAppSentiments[i].sentences.length - 1);
 	    		sentAverage = round(sentAverage);
-				//if sentiment is NaN assume it as normal
-	    		if (sentAverage !== sentAverage) {
-	    			sentAverage = 2;	
-	    		}
+	    		//if sentiment is null or NAN assume it as normal
+		    		if (sentAverage !== sentAverage || (!(sentAverage > 0))) {
+		    			zeroSentimentCount ++;
+		    			if (i === firstAppSentiments.length - 1) {
+		    				console.log("Zero sentiments for First App: " + zeroSentimentCount);
+				    		returnSentiments[features[identifier]].firstAppSentimentAverage /= (firstAppSentiments.length - zeroSentimentCount);
+							returnSentiments[features[identifier]].firstAppSentimentAverage = round(returnSentiments[features[identifier]].firstAppSentimentAverage);
+				    	}
+
+		    			continue;		
+		    		}
 
 	    		returnSentiments[features[identifier]].firstAppSentiments.push( { 
 	    			'sentence': sentence,
@@ -332,7 +341,8 @@ function handleTwoAppSentiments(res, features, url) {
     			returnSentiments[features[identifier]].firstAppSentimentAverage += sentAverage;
     			
     			if (i === firstAppSentiments.length - 1) { 
-					returnSentiments[features[identifier]].firstAppSentimentAverage /= firstAppSentiments.length;
+    				if (zeroSentimentCount > 0) { console.log("Zero sentiments for First App: " + zeroSentimentCount); }
+					returnSentiments[features[identifier]].firstAppSentimentAverage /= (firstAppSentiments.length - zeroSentimentCount);
 					returnSentiments[features[identifier]].firstAppSentimentAverage = round(returnSentiments[features[identifier]].firstAppSentimentAverage);
 				}
 	    	}
@@ -354,6 +364,7 @@ function handleTwoAppSentiments(res, features, url) {
 	    			console.log('second app sentiments for: ' + features[secondAppSentiments[0].identifier] + ' retrieved' )	
 	    		}
 
+	    		var zeroSentimentCount = 0;
 		    	for (var i = 0; i < secondAppSentiments.length; i++) {
 		    		var identifier = secondAppSentiments[i].identifier;
 					var sentence = secondAppSentiments[i].sentence;
@@ -370,12 +381,16 @@ function handleTwoAppSentiments(res, features, url) {
 		    		sentAverage /= secondAppSentiments[i].sentences.length;
 		    		sentAverage = round(sentAverage);
 
-		    		//if sentiment is null assume it as normal
-		    		if (sentAverage !== sentAverage) {
-		    			sentAverage = 2;	
-		    		}
-		    		if (!(sentAverage > 0)) {
-		    			console.log(sentAverage);
+		    		//if sentiment is null or NAN assume it as normal
+		    		if (sentAverage !== sentAverage || (!(sentAverage > 0))) {
+		    			zeroSentimentCount ++;
+		    			if (i === secondAppSentiments.length - 1) {
+		    				console.log("Zero sentiments for Second App: " + zeroSentimentCount);
+				    		returnSentiments[features[identifier]].secondAppSentimentAverage /= (secondAppSentiments.length - zeroSentimentCount);
+				    		returnSentiments[features[identifier]].secondAppSentimentAverage = round(returnSentiments[features[identifier]].secondAppSentimentAverage);
+				    	}
+
+		    			continue;		
 		    		}
 
 		    		returnSentiments[features[identifier]].secondAppSentiments.push( { 
@@ -386,7 +401,8 @@ function handleTwoAppSentiments(res, features, url) {
 	    			returnSentiments[features[identifier]].secondAppSentimentAverage += sentAverage;	
 		    			
 		    		if (i === secondAppSentiments.length - 1) {
-			    		returnSentiments[features[identifier]].secondAppSentimentAverage /= secondAppSentiments.length;
+		    			if (zeroSentimentCount > 0) { console.log("Zero sentiments for Second App: " + zeroSentimentCount); }
+			    		returnSentiments[features[identifier]].secondAppSentimentAverage /= (secondAppSentiments.length - zeroSentimentCount);
 			    		returnSentiments[features[identifier]].secondAppSentimentAverage = round(returnSentiments[features[identifier]].secondAppSentimentAverage);
 			    	}
 	    		}
@@ -543,7 +559,7 @@ function mineData(appValues, req, callback) {
 
 	var promises = [];
 	
-	for (var i = 0; i < 10; i++) {
+	for (var i = 0; i < 2; i++) {
 	var promise = store.reviews({
 		id: app.id,
 		sort: store.sort.HELPFUL,
