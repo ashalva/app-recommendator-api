@@ -102,7 +102,7 @@ app.get('/features', function(req, res){
 	Promise.all(appPromises).then(appValues => { 
 		//empty global variable not to save previously requested data
 		allAppFeatures = { };
-		mineData(appValues, req, function (allFeatures) { 
+		mineData(appValues, req, res, function (allFeatures) { 
 			res.set('Content-Type', 'application/json');
 			console.log(apps.length);
 			if (apps.length === 2) {
@@ -152,6 +152,8 @@ function getTwoAppsFeatures(allFeatures, apps) {
 
 	var firstFeatures = allFeatures[apps[0]].features;
 	var secondFeatures = allFeatures[apps[1]].features;
+	var firstAppCommonFeaturesIndexObject = {};
+	var secondAppCommonFeaturesIndexObject = {};
 
 	var featuresToReturn = [];
 	
@@ -172,12 +174,14 @@ function getTwoAppsFeatures(allFeatures, apps) {
 		   	if (result > 0.80) {
 		   		similarFeatureFound = true;
 				secondAppFeatures = secondAppFeatures.concat(secondFeatures[secondFeatureIndex].cluster_features);
+				firstAppCommonFeaturesIndexObject[firstFeatureIndex] = true;
+				secondAppCommonFeaturesIndexObject[secondFeatureIndex] = true;
 			}
 		}
 
 		if (similarFeatureFound) {
-			console.log("130 - first app features length: " + firstFeatures[firstFeatureIndex].cluster_features.length);
-			console.log("130 - second app features length: " + secondAppFeatures.length);
+			console.log("first app features length: " + firstFeatures[firstFeatureIndex].cluster_features.length);
+			console.log("second app features length: " + secondAppFeatures.length);
 
 			var mainClusterName = firstFeatures[firstFeatureIndex].cluster_name;
 
@@ -197,10 +201,28 @@ function getTwoAppsFeatures(allFeatures, apps) {
 		}
 	}
 
+	var firstAppUnCommonFeatures = {};
+	var secondAppUnCommonFeatures = {};
+	for (var firstFeatureIndex in firstFeatures) {
+		//storing all uncommon features for first App
+		if (firstAppCommonFeaturesIndexObject[firstFeatureIndex] != true) {
+			firstAppUnCommonFeatures[firstFeatureIndex] = firstFeatures[firstFeatureIndex];
+		}
+	}
+
+	for (var secondFeatureIndex in secondFeatures) { 
+		//storing all uncommon features for second App
+		if (secondAppCommonFeaturesIndexObject[secondFeatureIndex] != true) {
+			secondAppUnCommonFeatures[secondFeatureIndex] = secondFeatures[secondFeatureIndex];
+		}
+	}
+
 	combinedFeatures['firstSentences'] = allFeatures[apps[0]].sentences;
 	combinedFeatures['secondSentences'] = allFeatures[apps[1]].sentences;
+	combinedFeatures['firstAppUnCommonFeatures'] = firstAppUnCommonFeatures;
+	combinedFeatures['secondAppUnCommonFeatures'] = secondAppUnCommonFeatures;
 
-	return featuresToReturn;
+	return combinedFeatures;
 }
 
 
@@ -547,7 +569,7 @@ function sendFailure(res, reason) {
 	res.send(message);
 }
 
-function mineData(appValues, req, callback) {
+function mineData(appValues, req, res, callback) {
 	console.log("mineData() begining: " + appValues.length);
 	if (appValues.length == 0) {
 		console.log("**** returned ****");
@@ -559,7 +581,7 @@ function mineData(appValues, req, callback) {
 
 	var promises = [];
 	
-	for (var i = 0; i < 2; i++) {
+	for (var i = 0; i < 1; i++) {
 	var promise = store.reviews({
 		id: app.id,
 		sort: store.sort.HELPFUL,
@@ -600,8 +622,11 @@ function mineData(appValues, req, callback) {
 		pyshell.end(function (err) {
 			if (err){ console.log(err); }
 			console.log("finished");
-			mineData(appValues, req, callback);
+			mineData(appValues, req, res, callback);
 		});
+	}).catch(function () {
+    	sendFailure(res, 'There was unknown error on server side, please try later.')	 
+    	console.log('Promises for retrieving reviews were rejected');
 	});
 }
 
