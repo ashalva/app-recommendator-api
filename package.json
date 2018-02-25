@@ -5,8 +5,8 @@
   "main": "Main.js",
   "dependencies": {
     "app-store-scraper": "git+https://github.com/bbbuka/app-store-scraper.git",
-    "express": "^4.16.1",
-    "mathjs": "^3.18.0",
+    "express": "^4.16.2",
+    "mathjs": "^3.20.2",
     "python-shell": "^0.4.0",
     "request": "^2.83.0",
     "vectorious": "^4.8.1"

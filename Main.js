@@ -104,7 +104,6 @@ app.get('/features', function(req, res){
 		allAppFeatures = { };
 		mineData(appValues, req, res, function (allFeatures) { 
 			res.set('Content-Type', 'application/json');
-			console.log(apps.length);
 			if (apps.length === 2) {
 				res.send(getTwoAppsFeatures(allFeatures, apps));
 			} else if (apps.length === 1) {
@@ -141,6 +140,7 @@ function getOneAppFeatures(allFeatures, apps) {
 
 	combinedFeatures['firstSentences'] = allFeatures[apps[0]].sentences;
 
+	console.log('one app features retreival finished');
 	return featuresToReturn;
 }
 
@@ -157,6 +157,9 @@ function getTwoAppsFeatures(allFeatures, apps) {
 
 	var featuresToReturn = [];
 	
+	console.log("first length: " + firstFeatures.length);
+	console.log("second length: " + secondFeatures.length);
+
 	for (var firstFeatureIndex in firstFeatures) {
 		var v1 = firstFeatures[firstFeatureIndex].cluster_mean;
 		var similarFeatureFound = false;
@@ -193,7 +196,7 @@ function getTwoAppsFeatures(allFeatures, apps) {
 			var ff = combinedFeatures.data[mainClusterName].firstFeatures.map(f => f.feature);
 			var sf = combinedFeatures.data[mainClusterName].secondFeatures.map(f => f.feature);
 			var cluster = {
-				'cluster_name' : mainClusterName,
+				'clusterName' : mainClusterName,
 				'features': ff.concat(sf)
 			};
 
@@ -203,10 +206,18 @@ function getTwoAppsFeatures(allFeatures, apps) {
 
 	var firstAppUnCommonFeatures = {};
 	var secondAppUnCommonFeatures = {};
+	var firstAppUncommonFeaturesToReturn = [];
+	var secondAppUncommonFeaturesToReturn = [];
 	for (var firstFeatureIndex in firstFeatures) {
 		//storing all uncommon features for first App
 		if (firstAppCommonFeaturesIndexObject[firstFeatureIndex] != true) {
 			firstAppUnCommonFeatures[firstFeatureIndex] = firstFeatures[firstFeatureIndex];
+
+			var cluster = {
+				'clusterName' : firstFeatures[firstFeatureIndex].cluster_name,
+				'features': firstFeatures[firstFeatureIndex].cluster_features
+			};
+			firstAppUncommonFeaturesToReturn.push(cluster);
 		}
 	}
 
@@ -214,6 +225,12 @@ function getTwoAppsFeatures(allFeatures, apps) {
 		//storing all uncommon features for second App
 		if (secondAppCommonFeaturesIndexObject[secondFeatureIndex] != true) {
 			secondAppUnCommonFeatures[secondFeatureIndex] = secondFeatures[secondFeatureIndex];
+			
+			var cluster = {
+				'clusterName' : secondFeatures[secondFeatureIndex].cluster_name,
+				'features': secondFeatures[secondFeatureIndex].cluster_features
+			};
+			secondAppUncommonFeaturesToReturn.push(cluster);
 		}
 	}
 
@@ -222,29 +239,22 @@ function getTwoAppsFeatures(allFeatures, apps) {
 	combinedFeatures['firstAppUnCommonFeatures'] = firstAppUnCommonFeatures;
 	combinedFeatures['secondAppUnCommonFeatures'] = secondAppUnCommonFeatures;
 
-	return combinedFeatures;
+	console.log('two apps features retreival finished');
+	return {'commonFeatures' : featuresToReturn,
+			'firstAppFeatures' : firstAppUncommonFeaturesToReturn,
+			'secondAppFeatures' : secondAppUncommonFeaturesToReturn };
 }
 
 
 app.get('/reviews', function(req, res) {
-	var promises = [];
-	
-	for (var i = 0; i < 10; i++) {
-		var promise = store.reviews({
-			id: req.query.id,
-			sort: store.sort.HELPFUL,
-			page: i
-			});
-
-			promises.push(promise);
-	}
-	
-	Promise.all(promises).then(values => { 
-		values = [].concat.apply([], values)
-		res.set('Content-Type', 'application/json');
-		res.send(values);
-	});
-
+	store.reviews({
+		id: req.query.id,
+		sort: store.sort.HELPFUL,
+		page: 0
+		}).then(function(result) {
+			res.set('Content-Type', 'application/json');	  
+			res.send(result)
+		});
 });
 
 app.get('/sentiments', function(req, res) {
@@ -368,8 +378,6 @@ function handleTwoAppSentiments(res, features, url) {
 					returnSentiments[features[identifier]].firstAppSentimentAverage = round(returnSentiments[features[identifier]].firstAppSentimentAverage);
 				}
 	    	}
-
-	    	
 
     		executedPromiseCount += 1;
     		if (executedPromiseCount / 2 === features.length && executedPromiseCount % 2 === 0) {
