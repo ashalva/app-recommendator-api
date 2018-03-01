@@ -27,7 +27,19 @@ app.get('/', function(req, res){
 
 app.get('/categories', function(req, res){ 
 	res.set('Content-Type', 'application/json');	  
-	res.send(store.category)
+	res.send(store.collection)
+});
+
+app.get('/searchApp', function(req, res){ 
+	store.search({
+	  term: req.query.searchString,
+	  num: 5,
+	  device: store.device.ALL,
+	  country : 'us'
+	}).then(function(result) {
+		res.set('Content-Type', 'application/json');
+		res.send(result);
+	});
 });
 
 app.get('/apps', function(req, res){
