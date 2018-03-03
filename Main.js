@@ -143,7 +143,7 @@ function getOneAppFeatures(allFeatures, apps) {
 		};
 
 		var cluster = {
-			'cluster_name' : mainClusterName,
+			'clusterName' : mainClusterName,
 			'features': combinedFeatures.data[mainClusterName].firstFeatures.map(f => f.feature)
 		};
 
@@ -227,7 +227,7 @@ function getTwoAppsFeatures(allFeatures, apps) {
 
 			var cluster = {
 				'clusterName' : firstFeatures[firstFeatureIndex].cluster_name,
-				'features': firstFeatures[firstFeatureIndex].cluster_features
+				'features': firstFeatures[firstFeatureIndex].cluster_features.map(f => f.feature)
 			};
 			firstAppUncommonFeaturesToReturn.push(cluster);
 		}
@@ -240,7 +240,7 @@ function getTwoAppsFeatures(allFeatures, apps) {
 			
 			var cluster = {
 				'clusterName' : secondFeatures[secondFeatureIndex].cluster_name,
-				'features': secondFeatures[secondFeatureIndex].cluster_features
+				'features': secondFeatures[secondFeatureIndex].cluster_features.map(f => f.feature)
 			};
 			secondAppUncommonFeaturesToReturn.push(cluster);
 		}
@@ -252,7 +252,10 @@ function getTwoAppsFeatures(allFeatures, apps) {
 	combinedFeatures['secondAppUnCommonFeatures'] = secondAppUnCommonFeatures;
 
 	console.log('two apps features retreival finished');
-	return {'commonFeatures' : featuresToReturn,
+	return {'comparison' : true,
+			'firstAppName' : allFeatures[apps[0]].appName,
+			'secondAppName' : allFeatures[apps[1]].appName,
+			'commonFeatures' : featuresToReturn,
 			'firstAppFeatures' : firstAppUncommonFeaturesToReturn,
 			'secondAppFeatures' : secondAppUncommonFeaturesToReturn };
 }
