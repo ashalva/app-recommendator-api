@@ -153,6 +153,7 @@ function getOneAppFeatures(allFeatures, apps) {
 	combinedFeatures['firstSentences'] = allFeatures[apps[0]].sentences;
 
 	console.log('one app features retreival finished');
+
 	return featuresToReturn;
 }
 
@@ -223,7 +224,8 @@ function getTwoAppsFeatures(allFeatures, apps) {
 	for (var firstFeatureIndex in firstFeatures) {
 		//storing all uncommon features for first App
 		if (firstAppCommonFeaturesIndexObject[firstFeatureIndex] != true) {
-			firstAppUnCommonFeatures[firstFeatureIndex] = firstFeatures[firstFeatureIndex];
+			var mainClusterName = firstFeatures[firstFeatureIndex].cluster_name;
+			firstAppUnCommonFeatures[mainClusterName] = { 'firstFeatures': firstFeatures[firstFeatureIndex].cluster_features };
 
 			var cluster = {
 				'clusterName' : firstFeatures[firstFeatureIndex].cluster_name,
@@ -236,7 +238,8 @@ function getTwoAppsFeatures(allFeatures, apps) {
 	for (var secondFeatureIndex in secondFeatures) { 
 		//storing all uncommon features for second App
 		if (secondAppCommonFeaturesIndexObject[secondFeatureIndex] != true) {
-			secondAppUnCommonFeatures[secondFeatureIndex] = secondFeatures[secondFeatureIndex];
+			var mainClusterName = secondFeatures[secondFeatureIndex].cluster_name;
+			secondAppUnCommonFeatures[mainClusterName] = { 'firstFeatures': secondFeatures[secondFeatureIndex].cluster_features };
 			
 			var cluster = {
 				'clusterName' : secondFeatures[secondFeatureIndex].cluster_name,
@@ -252,6 +255,7 @@ function getTwoAppsFeatures(allFeatures, apps) {
 	combinedFeatures['secondAppUnCommonFeatures'] = secondAppUnCommonFeatures;
 
 	console.log('two apps features retreival finished');
+
 	return {'comparison' : true,
 			'firstAppName' : allFeatures[apps[0]].appName,
 			'secondAppName' : allFeatures[apps[1]].appName,
@@ -281,12 +285,66 @@ app.get('/sentiments', function(req, res) {
 	}		
 
 	var url = "http://localhost:9000/?properties=%7B%22annotators%22:%20%22sentiment%22%7D&pipelineLanguage=en&timeout=30000";
-	var features = req.query.features.split(',');
+	
+	var features = [];
+	var firstAppFeatures = [];
+	var secondAppFeatures = [];
+
+	if (req.query.features != undefined) { features = req.query.features.split(','); }
+	if (req.query.firstAppFeatures != undefined) { firstAppFeatures = req.query.firstAppFeatures.split(','); }
+	if (req.query.secondAppFeatures != undefined) { secondAppFeatures = req.query.secondAppFeatures.split(','); }
+
 
 	if (combinedFeatures.comparison) {
-		handleTwoAppSentiments(res, features, url);
+		var count = 0;
+		var returnSentiments = { };
+		if (features.length > 0) { 
+			handleTwoAppSentiments(combinedFeatures.data, features, url, function(rs) { 
+				count++;
+				if (count === 3) { 
+					res.set('Content-Type', 'application/json');
+					res.send(rs);
+				} else {
+					returnSentiments = rs;
+				}
+			});
+		} else {
+			count++;
+		}
+
+		if (firstAppFeatures.length > 0) { 
+			handleOneAppSentiments(combinedFeatures.firstAppUnCommonFeatures, firstAppFeatures, url, function(rs) {
+				count ++;
+				if (count === 3) { 
+					res.set('Content-Type', 'application/json');
+					res.send(rs);
+				} else {
+					returnSentiments = rs;
+				}
+			});
+		} else {
+			count++;
+		}
+
+		if (secondAppFeatures.length > 0) { 
+			handleOneAppSentiments(combinedFeatures.secondAppUnCommonFeatures, secondAppFeatures, url, function(rs) {
+				count++;
+				if (count === 3) { 
+					res.set('Content-Type', 'application/json');
+					res.send(rs);
+				} else {
+					returnSentiments = rs;
+				}
+			});
+		} else {
+			count++;;
+		}
+
 	} else {
-		handleOneAppSentiments(res, features, url);
+		handleOneAppSentiments(combinedFeatures.data, features, url, function(rs) {
+			res.set('Content-Type', 'application/json');
+			res.send(rs);
+		});
 	}
 });
 
@@ -295,14 +353,14 @@ function round(num) {
   return Number(num+'e-'+2)
 }
 
-function handleTwoAppSentiments(res, features, url) {
+function handleTwoAppSentiments(data, features, url, callback) {
 	var returnSentiments = { };
     var executedPromiseCount = 0;
     for (var i = 0; i < features.length; i++) {
-        returnSentiments[features[i]] = combinedFeatures.data[features[i]];
+        returnSentiments[features[i]] = data[features[i]];
         returnSentiments[features[i]].firstAppName = combinedFeatures.firstAppName;
-        returnSentiments[features[i]].comparison = true;
 		returnSentiments[features[i]].secondAppName = combinedFeatures.secondAppName;
+        returnSentiments[features[i]].comparison = true;
 		returnSentiments[features[i]].firstAppSentimentAverage = 0;
 		returnSentiments[features[i]].secondAppSentimentAverage = 0;
 
@@ -315,9 +373,9 @@ function handleTwoAppSentiments(res, features, url) {
             var sentences = combinedFeatures.firstSentences[sentenceKey];
             for (var j in sentences) {
                 //comparing all feature names included in the cluster
-                for (var k in combinedFeatures.data[features[i]].firstFeatures) {
+                for (var k in data[features[i]].firstFeatures) {
 	            	for (var extractedFeatureIndex in sentences[j].extracted_features) {
-	            		if (combinedFeatures.data[features[i]].firstFeatures[k].feature === sentences[j].extracted_features[extractedFeatureIndex] &&
+	            		if (data[features[i]].firstFeatures[k].feature === sentences[j].extracted_features[extractedFeatureIndex] &&
 	            			firstAppSentences.indexOf(sentences[j].sentence_text) == -1) {
 	            			firstAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
 	                		firstAppSentences.push(sentences[j].sentence_text);
@@ -331,9 +389,9 @@ function handleTwoAppSentiments(res, features, url) {
             var sentences = combinedFeatures.secondSentences[sentenceKey];
             for (var j in sentences) {
             	//comparing all feature names included in the cluster
-                for (var k in combinedFeatures.data[features[i]].secondFeatures) {
+                for (var k in data[features[i]].secondFeatures) {
 	            	for (var extractedFeatureIndex in sentences[j].extracted_features) {
-	            		if (combinedFeatures.data[features[i]].secondFeatures[k].feature === sentences[j].extracted_features[extractedFeatureIndex] &&
+	            		if (data[features[i]].secondFeatures[k].feature === sentences[j].extracted_features[extractedFeatureIndex] &&
 	            			secondAppSentences.indexOf(sentences[j].sentence_text) == -1) {
 	            			secondAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
 	                		secondAppSentences.push(sentences[j].sentence_text);
@@ -399,8 +457,7 @@ function handleTwoAppSentiments(res, features, url) {
     			console.log('finished sentiment analysis');
     			executedPromiseCount = 0;
     			
-    			res.set('Content-Type', 'application/json');
-				res.send(returnSentiments);
+    			callback(returnSentiments);
     		}
 	    });
 
@@ -458,19 +515,18 @@ function handleTwoAppSentiments(res, features, url) {
 	    			console.log('finished sentiment analysis');
 	    			executedPromiseCount = 0;
 
-	    			res.set('Content-Type', 'application/json');
-					res.send(returnSentiments);
+	    			callback(returnSentiments);
 	    		}
 	    });
 	}
 }
 
-function handleOneAppSentiments(res, features, url) {
+function handleOneAppSentiments(data, features, url, callback) {
 	var returnSentiments = { };
     var executedPromiseCount = 0;
 
     for (var i = 0; i < features.length; i++) {
-        returnSentiments[features[i]] = combinedFeatures.data[features[i]];
+        returnSentiments[features[i]] = data[features[i]];
         returnSentiments[features[i]].comparison = false;
         returnSentiments[features[i]].firstAppName = combinedFeatures.firstAppName;
 		returnSentiments[features[i]].firstAppSentimentAverage = 0;
@@ -481,9 +537,9 @@ function handleOneAppSentiments(res, features, url) {
         for (var sentenceKey in combinedFeatures.firstSentences) {
             var sentences = combinedFeatures.firstSentences[sentenceKey];
             for (var j in sentences) {
-            	for (var k in combinedFeatures.data[features[i]].firstFeatures) {
+            	for (var k in data[features[i]].firstFeatures) {
 	            	for (var extractedFeatureIndex in sentences[j].extracted_features) {
-	            		if (combinedFeatures.data[features[i]].firstFeatures[k].feature === sentences[j].extracted_features[extractedFeatureIndex] &&
+	            		if (data[features[i]].firstFeatures[k].feature === sentences[j].extracted_features[extractedFeatureIndex] &&
 	            			firstAppSentences.indexOf(sentences[j].sentence_text) == -1) {
 	            			firstAppSentimentPromises.push(httpPromisePostAsync(url, sentences[j].sentence_text, i));
 	                		firstAppSentences.push(sentences[j].sentence_text);
@@ -535,14 +591,11 @@ function handleOneAppSentiments(res, features, url) {
 				}
 	    	}
 
-	    	
-
     		executedPromiseCount += 1;
     		if (executedPromiseCount === features.length) {
     			executedPromiseCount = 0;
     			
-    			res.set('Content-Type', 'application/json');
-				res.send(returnSentiments);
+    			callback(returnSentiments);
     		}
 	    });
 	}
