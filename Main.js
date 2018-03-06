@@ -299,7 +299,7 @@ app.get('/sentiments', function(req, res) {
 
 	if (combinedFeatures.comparison) {
 		var count = 0;
-		var returnSentiments = { };
+		var returnSentiments = { comparison: true };
 		if (features.length > 0) { 
 			handleTwoAppSentiments(combinedFeatures.data, features, url, function(rs) { 
 				count++;
@@ -316,14 +316,14 @@ app.get('/sentiments', function(req, res) {
 		}
 
 		if (firstAppFeatures.length > 0) { 
-			handleOneAppSentiments(combinedFeatures.firstAppUnCommonFeatures, firstAppFeatures, combinedFeatures.firstSentences, url, function(rs) {
+			handleOneAppSentiments(combinedFeatures.firstAppUnCommonFeatures, combinedFeatures.firstAppName, firstAppFeatures, combinedFeatures.firstSentences, url, function(rs) {
 				count ++;
 				if (count === 3) { 
 					res.set('Content-Type', 'application/json');
-					returnSentiments.firstAppUnCommonSentiments = rs;
+					returnSentiments.firstAppUncommonSentiments = rs;
 					res.send(returnSentiments);
 				} else {
-					returnSentiments.firstAppUnCommonSentiments = rs;
+					returnSentiments.firstAppUncommonSentiments = rs;
 				}
 			});
 		} else {
@@ -331,7 +331,7 @@ app.get('/sentiments', function(req, res) {
 		}
 
 		if (secondAppFeatures.length > 0) { 
-			handleOneAppSentiments(combinedFeatures.secondAppUnCommonFeatures, secondAppFeatures, combinedFeatures.secondSentences, url, function(rs) {
+			handleOneAppSentiments(combinedFeatures.secondAppUnCommonFeatures, combinedFeatures.secondAppName, secondAppFeatures, combinedFeatures.secondSentences, url, function(rs) {
 				count++;
 				if (count === 3) { 
 					res.set('Content-Type', 'application/json');
@@ -346,7 +346,7 @@ app.get('/sentiments', function(req, res) {
 		}
 
 	} else {
-		handleOneAppSentiments(combinedFeatures.data, features, combinedFeatures.firstSentences, url, function(rs) {
+		handleOneAppSentiments(combinedFeatures.data, combinedFeatures.firstAppName, features, combinedFeatures.firstSentences, url, function(rs) {
 			res.set('Content-Type', 'application/json');
 			res.send(rs);
 		});
@@ -526,14 +526,14 @@ function handleTwoAppSentiments(data, features, url, callback) {
 	}
 }
 
-function handleOneAppSentiments(data, features, wholeSentences, url, callback) {
+function handleOneAppSentiments(data, appName, features, wholeSentences, url, callback) {
 	var returnSentiments = { };
     var executedPromiseCount = 0;
 
     for (var i = 0; i < features.length; i++) {
         returnSentiments[features[i]] = data[features[i]];
         returnSentiments[features[i]].comparison = false;
-        returnSentiments[features[i]].firstAppName = combinedFeatures.firstAppName;
+        returnSentiments[features[i]].firstAppName = appName;
 		returnSentiments[features[i]].firstAppSentimentAverage = 0;
 
         var firstAppSentimentPromises = [];
