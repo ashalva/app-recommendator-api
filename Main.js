@@ -25,6 +25,13 @@ app.get('/', function(req, res){
     res.send('API runninng on localhost:8081/');
 });
 
+app.get('/appDetails', function(req, res){
+    store.app({id: req.query.appId }).then(function(result) {
+		res.set('Content-Type', 'application/json');
+		res.send(result);
+	});
+});
+
 app.get('/categories', function(req, res){ 
 	res.set('Content-Type', 'application/json');	  
 	res.send(store.collection)
@@ -284,7 +291,7 @@ app.get('/sentiments', function(req, res) {
 		return;
 	}		
 
-	var url = "http://localhost:9000/?properties=%7B%22annotators%22:%20%22sentiment%22%7D&pipelineLanguage=en&timeout=30000";
+	var url = "http://localhost:9000/?properties=%7B%22annotators%22:%20%22sentiment%22%7D&pipelineLanguage=en&timeout=300000";
 	
 	var features = [];
 	var firstAppFeatures = [];
@@ -294,8 +301,8 @@ app.get('/sentiments', function(req, res) {
 	if (req.query.firstAppFeatures != undefined) { firstAppFeatures = req.query.firstAppFeatures.split(','); }
 	if (req.query.secondAppFeatures != undefined) { secondAppFeatures = req.query.secondAppFeatures.split(','); }
 
-	console.log("First App features: "+firstAppFeatures.length);
-	console.log("Second App features: "+secondAppFeatures.length);
+	console.log("First App features: " + firstAppFeatures.length);
+	console.log("Second App features: " + secondAppFeatures.length);
 
 	if (combinedFeatures.comparison) {
 		var count = 0;
@@ -609,7 +616,7 @@ function handleOneAppSentiments(data, appName, features, wholeSentences, url, ca
 
 function httpPromisePostAsync(theUrl, requestBody, identifier) {
 	return new Promise(function(resolve, reject) { 
-		request.timeout = 30000;
+		request.timeout = 300000;
 		request.post(theUrl, { json: JSON.stringify(requestBody) },
 		    function (error, response, body) {
 		        if (!error && response.statusCode == 200) {
