@@ -432,12 +432,21 @@ function handleTwoAppSentiments(data, features, url, callback) {
 	    			returnSentiments[features[identifier]].firstAppSentimentAverage = 0;
 	    		}
 
-	    		for (var j = 0; j < firstAppSentiments[i].sentences.length - 1; j++) {
-	    			sentAverage += parseInt(firstAppSentiments[i].sentences[j].sentimentValue);
+	    		var zeroCount = 0;
+	    		for (var j = 0; j < firstAppSentiments[i].sentences.length; j++) {
+	    			var builtSentence = firstAppSentiments[i].sentences[j].tokens.map(function(elem){return elem.word;}).join(" ");
+	    			builtSentence = builtSentence.replace(/\\/g, '').replace(/'/g,'').replace(/`/g,'').trim();
+
+	    			if (builtSentence === "") {
+	    				zeroCount ++;
+	    			} else {
+	    				sentAverage += parseInt(firstAppSentiments[i].sentences[j].sentimentValue);	
+	    			}
 	    		}
 
-	    		sentAverage /= (firstAppSentiments[i].sentences.length - 1);
+	    		sentAverage /= (firstAppSentiments[i].sentences.length - zeroCount);
 	    		sentAverage = round(sentAverage);
+	    		
 	    		//if sentiment is null or NAN assume it as normal
 		    		if (sentAverage !== sentAverage || (!(sentAverage > 0))) {
 		    			zeroSentimentCount ++;
@@ -488,11 +497,22 @@ function handleTwoAppSentiments(data, features, url, callback) {
 	    				returnSentiments[features[identifier]].secondAppSentimentAverage = 0;
 	    			}
 
+	    			//sometimes sentiment analysis returns two objects for one sentence, one value is 0
+	    			//trying to skip that value with zeroCount.
+	    			var zeroCount = 0;
 		    		for (var j = 0; j < secondAppSentiments[i].sentences.length; j++) {
-		    			sentAverage += parseInt(secondAppSentiments[i].sentences[j].sentimentValue);
+		    			var builtSentence = secondAppSentiments[i].sentences[j].tokens.map(function(elem){return elem.word;}).join(" ");
+		    			builtSentence = builtSentence.replace(/\\/g, '').replace(/'/g,'').replace(/`/g,'').trim();
+
+
+		    			if (builtSentence === "") {
+		    				zeroCount ++;
+		    			} else {
+		    				sentAverage += parseInt(secondAppSentiments[i].sentences[j].sentimentValue);	
+		    			}
 		    		}
 
-		    		sentAverage /= secondAppSentiments[i].sentences.length;
+		    		sentAverage /= (secondAppSentiments[i].sentences.length - zeroCount);
 		    		sentAverage = round(sentAverage);
 
 		    		//if sentiment is null or NAN assume it as normal
@@ -669,7 +689,7 @@ function mineData(appValues, req, res, callback) {
 
 	var promises = [];
 	
-	for (var i = 0; i < 1; i++) {
+	for (var i = 0; i < 10; i++) {
 	var promise = store.reviews({
 		id: app.id,
 		sort: store.sort.HELPFUL,
